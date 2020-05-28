@@ -92,6 +92,6 @@ end
 function create_folder(result_folder)
 	if !isdir(result_folder)
 	    @info("Creating Results Folder")
-		mkdir(result_folder)
+		mkpath(result_folder)
 	end
 end

@@ -507,7 +507,7 @@ function redispatch_model!(pomato::POMATO, market_model_results::Dict, redispatc
 	@expression(model, RES_Zone[t=1:n.t, z=1:n.zones],
 		GenericAffExpr{Float64, VariableRef}(sum(RES_Node[t, node] for node in data.zones[z].nodes)));
 
-	@expression(model, COST_G, sum(G[t, p]*data.plants[p].mc_el for p in redispatch_zone_plants, t in 1:n.t));
+	@expression(model, COST_G, sum(G[t, p]*data.plants[p].mc_el for p in 1:n.plants, t in 1:n.t));
 	@expression(model, COST_H, GenericAffExpr{Float64, VariableRef}(0));
 
 	if n.res > 0

@@ -4,8 +4,9 @@ import .MarketModel
 using Test, Logging
 using Clp
 
-ConsoleLogger(stdout, Logging.Error) |> global_logger#
+ConsoleLogger(stdout, Logging.Info) |> global_logger
 
+# %%
 @testset "All" begin
 	@testset "Basic MarketModel" begin
 		optimizer = Clp.Optimizer
@@ -37,18 +38,42 @@ ConsoleLogger(stdout, Logging.Error) |> global_logger#
 end
 
 
-#
-# ["redispatch_R3"].misc_results["Objective Value"]
-#
+
 # data_dir = cd(pwd, "..")*"/examples/nrel_118/"
+#
 # options, data = MarketModel.read_model_data(data_dir)
+#
 # data.folders["result_dir"] = pwd()*"/examples/results/testtest"
 # pomato = MarketModel.POMATO(MarketModel.Model(), data, options)
 # MarketModel.add_optimizer!(pomato)
 # MarketModel.add_variables_expressions!(pomato)
 # pomato.model
 # @test MarketModel.JuMP.num_variables(pomato.model) == (211 + 118*3 + 3*3)*24
+
+
 #
+# include("../src/MarketModel.jl")
+# import .MarketModel
+#
+# data_dir = cd(pwd, "..")*"/examples/nrel_test/"
+#
+# options, data = MarketModel.read_model_data(data_dir)
+# options["redispatch"]["horizon"] = 24
+# options["redispatch"]["zonal_redispatch"] = false
+# optimizer = Clp.Optimizer
+#
+# data.folders["result_dir"] = pwd()*"/examples/results/testtest"
+# result = MarketModel.run_market_model_redispatch(data, options, optimizer)
+#
+# r1 = result["market_results"]
+# # 3.1856171112844176e6
+# r2 = result["redispatch_R1_R2_R3"]
+# # 3.1830242454394284e6
+#
+# r1.misc_results["COST_G"] - r2.misc_results["COST_G"]
+#
+# r1.misc_results["Objective Value"] - r2.misc_results["Objective Value"]
+
 # MarketModel.add_electricity_generation_constraints!(pomato)
 # MarketModel.add_electricity_storage_constraints!(pomato)
 #

@@ -6,9 +6,14 @@
   ],
   "heat_model": false,
   "constrain_nex": false,
-  "split_timeseries": false,
+  "timeseries": {
+    "split": true,
+    "market_horizon": 1000,
+    "redispatch_horizon": 24
+  },
   "redispatch": {
     "include": true,
+    "zonal_redispatch": true,
     "zones": [
       "R1",
       "R2",

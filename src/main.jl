@@ -12,6 +12,19 @@ function set_logger()
 	end
 end
 
+function split_timeseries_segments(data::Data, segment_length::Int)
+	segments = []
+	splits = Int(floor(length(data.t)/segment_length))
+	if splits == 0
+		return [1:length(data.t)]
+	end
+	for i in 1:splits - 1
+		push!(segments, ((i-1)*segment_length + 1):i*segment_length)
+	end
+	push!(segments, (splits-1)*segment_length + 1:length(data.t))
+ 	return segments
+end
+
 function run_market_model(data_dir::String, result_dir::String, input_optimizer;
 						  return_result::Bool=false, redispatch::Bool=false)
 	set_logger()
@@ -43,7 +56,8 @@ function run_market_model(data::Data, options::Dict{String, Any}, input_optimize
 	pomato_results = Dict{String, Result}()
 	if options["split_timeseries"]
 		data_full = deepcopy(data)
-		for timesteps in [t.index:t.index for t in data.t]
+		model_horizon_segments = split_timeseries_segments(data_full, options["timeseries"]["market_horizon"])
+		for timesteps in model_horizon_segments
 			data = deepcopy(data_full)
 			data.t = data.t[timesteps]
 			set_model_horizon!(data)

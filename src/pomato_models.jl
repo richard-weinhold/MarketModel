@@ -92,40 +92,54 @@ function run_redispatch_model(data::Data, options::Dict{String, Any})
 	load_redispatch_grid!(pomato)
 	data_copy = deepcopy(pomato.data)
 	market_result_copy = deepcopy(market_result)
-	for redispatch_zone in options["redispatch"]["zones"]
+
+	if options["redispatch"]["zonal_redispatch"]
+		redispatch_zones = [[zone] for zone in options["redispatch"]["zones"]]
+	else
+		 redispatch_zones = [convert(Vector{String}, vcat(options["redispatch"]["zones"]))]
+	end
+
+	for zones in redispatch_zones
 		tmp_results = Dict{String, Result}()
-		for timesteps in [t.index:t.index for t in data_copy.t]
-			data = deepcopy(data_copy)
-			data.t = data.t[timesteps]
-			set_model_horizon!(data)
-			market_result = Dict()
-			for key in keys(market_result_copy)
- 				market_result[key] = market_result_copy[key][timesteps, :]
-			end
-			@info("Initializing Redispatch Model for zone $(redispatch_zone) Timestep $(data.t[1].name)")
-
-			pomato = POMATO(Model(), data, options)
-			add_optimizer!(pomato)
-
-			redispatch_model!(pomato, market_result, redispatch_zone);
-			add_curtailment_constraints!(pomato, redispatch_zone);
-			add_electricity_energy_balance!(pomato);
-
-			# add_objective!(pomato)
-			@info("Solving...")
-			t_start = time_ns()
-			@time JuMP.optimize!(pomato.model)
-			@info("Objective: $(JuMP.objective_value(pomato.model))")
-			@info("Objective: $(JuMP.termination_status(pomato.model))")
-			t_elapsed = time_ns() - t_start
-			@info("Solvetime: $(round(t_elapsed*1e-9, digits=2)) seconds")
-
-			if JuMP.termination_status(pomato.model) != MOI.OPTIMAL
-				check_infeasibility(pomato.model)
-			end
-			tmp_results[data.t[1].name] = add_result!(pomato)
+		# for timesteps in [t.index:t.index for t in data_copy.t]
+		model_horizon_segments = split_timeseries_segments(data, options["timeseries"]["redispatch_horizon"])
+		for timesteps in model_horizon_segments
+			# data = deepcopy(data_copy)
+			pomato = solve_redispatch_model(deepcopy(data_copy), deepcopy(market_result_copy), options, timesteps, zones)
+			tmp_results[data_copy.t[timesteps][1].name] = add_result!(pomato)
 		end
-		redispatch_results["redispatch_"*redispatch_zone] = concat_results(tmp_results)
+		redispatch_results["redispatch_"*join(zones, "_")] = concat_results(tmp_results)
 	end
 	return redispatch_results
+end
+
+function solve_redispatch_model(data::Data, market_result::Dict{String, Array{Float64, 2}},
+								options::Dict{String, Any}, timesteps::UnitRange, redispatch_zones::Vector{String})
+	data.t = data.t[timesteps]
+	set_model_horizon!(data)
+	for key in keys(market_result)
+		market_result[key] = market_result[key][timesteps, :]
+	end
+	@info("Initializing Redispatch Model for zones $(redispatch_zones) Timestep $(data.t[1].name)")
+
+	pomato = POMATO(Model(), data, options)
+	MOI.set(pomato.model, MOI.Silent(), true)
+	add_optimizer!(pomato)
+	redispatch_model!(pomato, market_result, redispatch_zones);
+	add_curtailment_constraints!(pomato, redispatch_zones);
+	add_electricity_energy_balance!(pomato);
+
+	# add_objective!(pomato)
+	@info("Solving...")
+	t_start = time_ns()
+	JuMP.optimize!(pomato.model)
+	@info("Objective: $(JuMP.objective_value(pomato.model))")
+	@info("Objective: $(JuMP.termination_status(pomato.model))")
+	t_elapsed = time_ns() - t_start
+	@info("Solvetime: $(round(t_elapsed*1e-9, digits=2)) seconds")
+
+	if JuMP.termination_status(pomato.model) != MOI.OPTIMAL
+		check_infeasibility(pomato.model)
+	end
+	return pomato
 end

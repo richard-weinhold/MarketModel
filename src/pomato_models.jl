@@ -11,7 +11,7 @@ function add_optimizer!(pomato::POMATO)
 	end
 end
 
-function run_market_model(data::Data, options::Dict{String, Any})
+function market_model(data::Data, options::Dict{String, Any})
 
 	pomato = POMATO(Model(), data, options)
 
@@ -33,7 +33,7 @@ function run_market_model(data::Data, options::Dict{String, Any})
 		add_curtailment_constraints!(pomato)
 	end
 
-	if in(pomato.options["type"] , ["ntc", "zonal", "cbco_zonal"])
+	if in(pomato.options["type"] , ["ntc"])
 		@info("Adding NTC Constraints...")
 		add_ntc_constraints!(pomato)
 	end
@@ -77,8 +77,8 @@ function run_market_model(data::Data, options::Dict{String, Any})
 	return pomato
 end
 
-function run_redispatch_model(data::Data, options::Dict{String, Any})
-	pomato = run_market_model(data, options)
+function redispatch_model(data::Data, options::Dict{String, Any})
+	pomato = market_model(data, options)
 	redispatch_results = Dict{String, Result}()
 	redispatch_results["market_results"] = pomato.result
 
@@ -123,8 +123,8 @@ function solve_redispatch_model(data::Data, market_result::Dict{String, Array{Fl
 	@info("Initializing Redispatch Model for zones $(redispatch_zones) Timestep $(data.t[1].name)")
 
 	pomato = POMATO(Model(), data, options)
-	MOI.set(pomato.model, MOI.Silent(), true)
-	add_optimizer!(pomato)
+	MOI.set(pomato.model, MOI.Silent(), false)
+	add_optimizer!(pomato);
 	redispatch_model!(pomato, market_result, redispatch_zones);
 	add_curtailment_constraints!(pomato, redispatch_zones);
 	add_electricity_energy_balance!(pomato);

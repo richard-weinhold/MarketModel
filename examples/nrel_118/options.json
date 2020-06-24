@@ -1,5 +1,5 @@
 {
-  "type": "ntc",
+  "type": "dispatch",
   "model_horizon": [
     0,
     24
@@ -13,7 +13,7 @@
   },
   "redispatch": {
     "include": true,
-    "zonal_redispatch": true,
+    "zonal_redispatch": false,
     "zones": [
       "R1",
       "R2",
@@ -37,7 +37,7 @@
     "electricity": {
       "include": true,
       "cost": 100.0,
-      "bound": 1000
+      "bound": 10000
     },
     "lines": {
       "include": false,

@@ -9,10 +9,10 @@ ConsoleLogger(stdout, Logging.Info) |> global_logger
 # %%
 @testset "All" begin
 	@testset "Basic MarketModel" begin
-		optimizer = Clp.Optimizer
+		optimizer_package = Clp
 		data_dir = cd(pwd, "..")*"/examples/nrel_118/"
 		result_dir = cd(pwd, "..")*"/examples/results/"
-		result = MarketModel.run_market_model(data_dir, result_dir, optimizer, return_result=true)
+		result = MarketModel.run_market_model(data_dir, result_dir, optimizer_package, return_result=true)
 		for r in keys(result)
 			obj_market_result = 993555.8332305112
 			@test result[r].misc_results["Solve Status"] == MarketModel.MOI.OPTIMAL
@@ -21,10 +21,10 @@ ConsoleLogger(stdout, Logging.Info) |> global_logger
 	end
 
 	@testset "Basic Redispatch" begin
-		optimizer = Clp.Optimizer
+		optimizer_package = Clp
 		data_dir = cd(pwd, "..")*"/examples/nrel_118/"
 		result_dir = cd(pwd, "..")*"/examples/results/"
-		result = MarketModel.run_market_model(data_dir, result_dir, optimizer,
+		result = MarketModel.run_market_model(data_dir, result_dir, optimizer_package,
 			redispatch=true, return_result=true)
 
 		obj_market_result = 993555.8332305112
@@ -38,11 +38,84 @@ ConsoleLogger(stdout, Logging.Info) |> global_logger
 end
 
 
-
-# data_dir = cd(pwd, "..")*"/examples/nrel_118/"
-#
+# %%
+# data_dir = "C:/Users/riw/tubCloud/Uni/Market_Tool/pomato_studies/data_temp/julia_files/data/"
+# #
 # options, data = MarketModel.read_model_data(data_dir)
+# options["redispatch"]["zonal_redispatch"] = false
+# options["infeasibility"]["electricity"]["bound"] = 0
+# optimizer = Gurobi.Optimizer
+# data.folders["result_dir"] = cd(pwd, "..")*"/examples/results/"
+# # # result = MarketModel.run_market_model(data_dir, result_dir, optimizer,
+# # 	# redispatch=true, return_result=true)
+# #
+# result = MarketModel.run_market_model_redispatch(data, options, optimizer)
 #
+# maximum(result["redispatch_R1_R2_R3"].INFEAS_EL_N_POS[:, :INFEAS_EL_N_POS])
+# maximum(result["redispatch_R1_R2_R3"].INFEAS_EL_N_NEG[:, :INFEAS_EL_N_NEG])
+# #
+#
+# MarketModel.set_global_optimizer(Gurobi.Optimizer)
+# pomato = MarketModel.market_model(data, options)
+# redispatch_results = Dict{String, MarketModel.Result}()
+# redispatch_results["market_results"] = pomato.result
+#
+# market_result = Dict{String, Array{Float64, 2}}()
+# market_result["g_market"] = MarketModel.value.(pomato.model[:G])
+# market_result["d_es_market"] = MarketModel.value.(pomato.model[:D_es])
+# market_result["d_ph_market"] = MarketModel.value.(pomato.model[:D_ph])
+# market_result["infeas_pos_market"] = MarketModel.value.(pomato.model[:INFEAS_EL_N_POS])
+# market_result["infeas_neg_market"] = MarketModel.value.(pomato.model[:INFEAS_EL_N_NEG])
+#
+# MarketModel.load_redispatch_grid!(pomato)
+# data_copy = deepcopy(pomato.data)
+# market_result_copy = deepcopy(market_result)
+#
+# if options["redispatch"]["zonal_redispatch"]
+# 	redispatch_zones = [[zone] for zone in options["redispatch"]["zones"]]
+# else
+# 	 redispatch_zones = [convert(Vector{String}, vcat(options["redispatch"]["zones"]))]
+# end
+#
+# # for zones in redispatch_zones
+# zones = redispatch_zones[1]
+# tmp_results = Dict{String, MarketModel.Result}()
+# # for timesteps in [t.index:t.index for t in data_copy.t]
+# model_horizon_segments = MarketModel.split_timeseries_segments(data, options["timeseries"]["redispatch_horizon"])
+# timesteps = model_horizon_segments[1]
+# # data = deepcopy(data_copy)
+# data.t = data.t[timesteps]
+# MarketModel.set_model_horizon!(data)
+# for key in keys(market_result)
+# 	market_result[key] = market_result[key][timesteps, :]
+# end
+# @info("Initializing Redispatch Model for zones $(zones) Timestep $(data.t[1].name)")
+#
+# options["infeasibility"]["electricity"]["bound"] = 0
+# pomato = MarketModel.POMATO(MarketModel.Model(), data, options)
+# # MOI.set(pomato.model, MOI.Silent(), false)
+# MarketModel.add_optimizer!(pomato);
+# MarketModel.redispatch_model!(pomato, market_result, zones);
+# MarketModel.add_curtailment_constraints!(pomato, zones);
+# MarketModel.add_electricity_energy_balance!(pomato);
+#
+# @info("Solving...")
+# t_start = time_ns()
+# MarketModel.JuMP.optimize!(pomato.model)
+# @info("Objective: $(MarketModel.JuMP.objective_value(pomato.model))")
+# @info("Objective: $(JuMP.termination_status(pomato.model))")
+# t_elapsed = time_ns() - t_start
+# @info("Solvetime: $(round(t_elapsed*1e-9, digits=2)) seconds")
+#
+
+
+# %%
+# obj_market_result = 993555.8332305112
+# @test result["market_results"].m isc_results["Objective Value"] ≈ obj_market_result rtol=0.01
+
+# pomato = MarketModel.POMATO(MarketModel.Model(), data, options)
+
+
 # data.folders["result_dir"] = pwd()*"/examples/results/testtest"
 # pomato = MarketModel.POMATO(MarketModel.Model(), data, options)
 # MarketModel.add_optimizer!(pomato)
@@ -50,13 +123,11 @@ end
 # pomato.model
 # @test MarketModel.JuMP.num_variables(pomato.model) == (211 + 118*3 + 3*3)*24
 
-
-#
 # include("../src/MarketModel.jl")
 # import .MarketModel
-#
+
 # data_dir = cd(pwd, "..")*"/examples/nrel_test/"
-#
+
 # options, data = MarketModel.read_model_data(data_dir)
 # options["redispatch"]["horizon"] = 24
 # options["redispatch"]["zonal_redispatch"] = false

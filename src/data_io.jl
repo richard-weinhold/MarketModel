@@ -63,7 +63,8 @@ function load_redispatch_grid!(pomato::POMATO)
         ptdf = [grid_data[cbco, Symbol(node.name)] for node in pomato.data.nodes]
         ram = grid_data[cbco, :ram]*1.
         newcbco = Grid(index, name, ptdf, ram)
-        newcbco.zone = coalesce(grid_data[cbco, :zone], nothing)
+        newcbco.zone_i = coalesce(grid_data[cbco, :zone_i], nothing)
+        newcbco.zone_j = coalesce(grid_data[cbco, :zone_j], nothing)
         push!(grid, newcbco)
     end
     pomato.data.grid = grid

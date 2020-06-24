@@ -283,7 +283,7 @@ function add_curtailment_constraints!(pomato::POMATO, zones::Vector{String})
 	 	end
 	 end
 
- 	@constraint(model, [t=1:n.t, res=res_in_zone], CURT[t, res] <= 0.2*data.renewables[res].mu[t])
+ 	# @constraint(model, [t=1:n.t, res=res_in_zone], CURT[t, res] <= 0.2*data.renewables[res].mu[t])
 	COST_CURT = model[:COST_CURT]
 
 	add_to_expression!(COST_CURT, sum(CURT*pomato.options["curtailment"]["cost"]))
@@ -302,7 +302,7 @@ function add_curtailment_constraints!(pomato::POMATO)
 		 	add_to_expression!(RES_Zone[t, data.nodes[data.renewables[res].node].zone], -CURT[t, res])
 	 	end
 	 end
-	@constraint(model, [t=1:n.t], CURT[t, :] .<= [0.2*res.mu[t] for res in data.renewables])
+	# @constraint(model, [t=1:n.t], CURT[t, :] .<= [0.2*res.mu[t] for res in data.renewables])
 	COST_CURT = model[:COST_CURT]
 	add_to_expression!(COST_CURT, sum(CURT*pomato.options["curtailment"]["cost"]))
 end
@@ -431,7 +431,6 @@ function add_chance_constraints!(pomato::POMATO; fixed_alpha=true)
 end
 
 
-
 function redispatch_model!(pomato::POMATO, market_model_results::Dict, redispatch_zones::Vector{String})
 	#### Previous solution and data
 	n = pomato.n
@@ -441,8 +440,8 @@ function redispatch_model!(pomato::POMATO, market_model_results::Dict, redispatc
 	g_market, d_es_market, d_ph_market = market_model_results["g_market"], market_model_results["d_es_market"], market_model_results["d_ph_market"]
 	infeas_neg_market, infeas_pos_market = market_model_results["infeas_neg_market"], market_model_results["infeas_pos_market"]
 
-	redispatch_zones_plants = setdiff(data.zones[findfirst(z -> z.name in redispatch_zones, data.zones)].plants, map.es)
-	redispatch_zones_nodes = data.zones[findfirst(z -> z.name in redispatch_zones, data.zones)].nodes
+	redispatch_zones_nodes = vcat([data.zones[z].nodes for z in findall(z -> z.name in redispatch_zones, data.zones)]...)
+	redispatch_zones_plants = setdiff(findall(p -> p.node in redispatch_zones_nodes, data.plants), pomato.map.es)
 
 	## Build Redispatch model
 	@variable(model, G_redispatch[1:n.t, redispatch_zones_plants] >= 0) # El. power generation per plant p
@@ -453,8 +452,8 @@ function redispatch_model!(pomato::POMATO, market_model_results::Dict, redispatc
 	@variable(model, INJ[1:n.t, 1:n.nodes]) # Net Injection at Node n
 	@variable(model, F_DC[1:n.t, 1:n.dc]) # Flow in DC Line dc
 
-	@variable(model, 0 <= INFEAS_NEG[1:n.t, redispatch_zones_nodes]) # <= 100*pomato.options["infeasibility"]["bound"])
-	@variable(model, 0 <= INFEAS_POS[1:n.t, redispatch_zones_nodes]) # <= 100*pomato.options["infeasibility"]["bound"])
+	@variable(model, 0 <= INFEAS_NEG[1:n.t, redispatch_zones_nodes] <= pomato.options["infeasibility"]["electricity"]["bound"])
+	@variable(model, 0 <= INFEAS_POS[1:n.t, redispatch_zones_nodes] <= pomato.options["infeasibility"]["electricity"]["bound"])
 	#
 	@expression(model, INFEAS_EL_N_NEG[t=1:n.t, node=1:n.nodes],  GenericAffExpr{Float64, VariableRef}(0));
 	@expression(model, INFEAS_EL_N_POS[t=1:n.t, node=1:n.nodes],  GenericAffExpr{Float64, VariableRef}(0));
@@ -538,8 +537,9 @@ function redispatch_model!(pomato::POMATO, market_model_results::Dict, redispatc
 	@constraint(model, [t=1:n.t, slack=map.slack],
 		0 == sum(INJ[t, n] for n in data.nodes[slack].slack_zone))
 
-	redispatch_zones_grid = filter(cb -> data.grid[cb].zone in redispatch_zones, 1:n.cb)
+	redispatch_zones_grid = filter(cb -> (data.grid[cb].zone_i in redispatch_zones)&(data.grid[cb].zone_j in redispatch_zones), 1:n.cb)
 	@info("$(length(redispatch_zones_grid)) lines part of the redispatch network")
+
 	ptdf = vcat([data.grid[cb].ptdf' for cb in redispatch_zones_grid]...)
 	@constraint(model, [t=1:n.t], ptdf * INJ[t, :] .<= [data.grid[cb].ram for cb in redispatch_zones_grid]);
 	@constraint(model, [t=1:n.t], -ptdf * INJ[t, :] .<= [data.grid[cb].ram for cb in redispatch_zones_grid]);

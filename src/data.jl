@@ -20,7 +20,8 @@ mutable struct Grid
     # Optional Attributes
     timestep::String
     reference_flow::Dict
-    zone::Union{String, Nothing}
+    zone_i::Union{String, Nothing}
+    zone_j::Union{String, Nothing}
     function Grid(index::Int,
                   name::String,
                   ptdf::Vector{Float64},

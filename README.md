@@ -5,7 +5,7 @@
 Overview
 --------
 
-The Power Market Tool [(POAMTO)](https://github.com/richard-weinhold/pomato) aims to enable research and analyses of modern real-world electricity markets in the context of the physical transmission system and its secure operation. To analyze relevant market and operational processes POMATO provides: Simultaneous zonal market clearing and nodal power flow computation, a scalable and fast SCOPF algorithm, and risk-aware optimal power flow via chance constraints. All optimization features rely on Julia/JuMP, leveraging its accessibility, computational performance, and solver interfaces.
+The Power Market Tool [(POMATO)](https://github.com/richard-weinhold/pomato) aims to enable research and analyses of modern real-world electricity markets in the context of the physical transmission system and its secure operation. To analyze relevant market and operational processes POMATO provides: Simultaneous zonal market clearing and nodal power flow computation, a scalable and fast SCOPF algorithm, and risk-aware optimal power flow via chance constraints. All optimization features rely on Julia/JuMP, leveraging its accessibility, computational performance, and solver interfaces.
 
 This repository holds these features as a individual julia package for easier maintenance, testing and documentation. However it is eventually embedded in a Python front-end, providing flexible and easily maintainable data processing and user interaction features and is not meant so be used on its own. Please see the corresponding publication and the [(POAMTO repository)](https://github.com/richard-weinhold/pomato) for further information.
 

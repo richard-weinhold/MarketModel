@@ -28,7 +28,6 @@ include("pomato_models.jl")
 include("model_functions.jl")
 include("main.jl")
 
-
 export run_market_model, run_market_model_redispatch
 
 function __init__()

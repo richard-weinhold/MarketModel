@@ -1,5 +1,9 @@
 """ Run the models, defined in create_model.jl"""
 
+function set_global_optimizer(input_optimizer)
+	global optimizer = input_optimizer
+end
+
 function set_logger()
 	# global_logger(ConsoleLogger(stdout, Logging.Info))
 	if isfile(pwd()*"/logs/RedundancyRemoval.log")
@@ -52,7 +56,8 @@ end
 
 function run_market_model(data::Data, options::Dict{String, Any}, input_optimizer)
 
-	global optimizer = input_optimizer
+	global optimizer = input_optimizer.Optimizer
+	global optimizer_package = input_optimizer
 	pomato_results = Dict{String, Result}()
 	if options["split_timeseries"]
 		data_full = deepcopy(data)
@@ -62,10 +67,10 @@ function run_market_model(data::Data, options::Dict{String, Any}, input_optimize
 			data.t = data.t[timesteps]
 			set_model_horizon!(data)
 			@info("Initializing Market Model for timestep $(data.t[1].name)...")
-			pomato_results[data.t[1].name] = run_market_model(data, options).result
+			pomato_results[data.t[1].name] = market_model(data, options).result
 		end
 	else
-		pomato_results[data.t[1].name] = run_market_model(data, options).result
+		pomato_results[data.t[1].name] = market_model(data, options).result
 	end
 	save_result(concat_results(pomato_results), data.folders["result_dir"])
 	return pomato_results
@@ -73,8 +78,9 @@ end
 
 function run_market_model_redispatch(data::Data, options::Dict{String, Any}, input_optimizer)
 
-	global optimizer = input_optimizer
-	pomato_results = run_redispatch_model(data, options)
+	global optimizer = input_optimizer.Optimizer
+	global optimizer_package = input_optimizer
+	pomato_results = redispatch_model(data, options)
 	for result in keys(pomato_results)
 		save_result(pomato_results[result], data.folders["result_dir"]*"_"*result)
 	end

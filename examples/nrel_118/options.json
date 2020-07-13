@@ -25,6 +25,12 @@
     "include": false,
     "cost": 1000.0
   },
+  "chance_constrained": {
+    "include": false,
+    "fixed_alpha": true,
+    "cc_res_mw": 5,
+    "alpha_plants_mw": 50
+  },
   "parameters": {
     "storage_start": 0.65
   },

@@ -348,11 +348,11 @@ end
 
 function create_alpha_loadflow_constraint!(model::Model,
 										   ptdf::Array{Float64, 2},
-										   Alpha_Nodes::Array{GenericAffExpr{Float64, VariableRef},2},
+										   Alpha_Nodes::Union{Array{GenericAffExpr{Float64, VariableRef},2}, Array{Real,2}},
 										   cc_res_to_node::SparseMatrixCSC{Int8, Int64},
 										   Epsilon_root::Vector{SparseMatrixCSC{Float64, Int64}},
 										   t::Int)
-	@info("Load Alpha for t = ", t, " using ", Threads.nthreads(), " Threads")
+	@info("Load Alpha for t = $(t) using $(Threads.nthreads()) Threads")
 	B = cc_res_to_node - hcat([Alpha_Nodes[t,:] for i in 1:size(cc_res_to_node, 2)]...)
 	nonzero_indices = [findall(x -> x != GenericAffExpr{Float64, VariableRef}(0), B[:, i]) for i in 1:size(cc_res_to_node, 2) ]
 	alpha_loadflow = zeros(GenericAffExpr{Float64, VariableRef}, size(ptdf, 1), size(cc_res_to_node, 2))
@@ -373,20 +373,23 @@ function create_alpha_loadflow_constraint!(model::Model,
 	@info("Adding Load Flow Constraint")
 	T = model[:T]
 	@constraint(model, [cb=1:size(ptdf, 1)], vec(vcat(T[t, cb], (alpha_loadflow[cb, :]'*Epsilon_root[t])')) in SecondOrderCone());
-	@info("Done for t = ", t)
+	@info("Done for t = $(t)")
 end
 
-function add_chance_constraints!(pomato::POMATO; fixed_alpha=true)
+function add_chance_constraints!(pomato::POMATO)
 
 	model, n, map, data, options = pomato.model, pomato.n, pomato.map, pomato.data, pomato.options
-	if !("cc" in keys(options))
-		options["cc"] = Dict("fixed_alpha"=> fixed_alpha)
-	end
 
+	@info("Creating Chance Constraints for $(n.cc_res) RES generators which are larger than $(options["chance_constrained"]["cc_res_mw"]) MW")
+	if options["chance_constrained"]["fixed_alpha"]
+		@info("Reserve allocation with fixed ratio for $(n.alpha) power plants which are larger than $(options["chance_constrained"]["alpha_plants_mw"]) MW")
+	else
+		@info("Reserve is freely allocated for $(n.alpha) power plants which are larger than $(options["chance_constrained"]["alpha_plants_mw"]) MW")
+	end
 	# Map CC Res to Nodes
 	cc_res_to_node = spzeros(Int8, n.nodes, n.res)
 	for res in data.renewables[map.cc_res]
-	cc_res_to_node[res.node, res.index] = Int8(1)
+		cc_res_to_node[res.node, res.index] = Int8(1)
 	end
 	cc_res_to_node = cc_res_to_node[:, map.cc_res]
 
@@ -399,7 +402,7 @@ function add_chance_constraints!(pomato::POMATO; fixed_alpha=true)
 	Epsilon_root = [Epsilon[t]^(1/2) for t in 1:n.t]
 	S = [sqrt(sum(Epsilon[t])) for t in 1:n.t]
 
-	if options["cc"]["fixed_alpha"]
+	if options["chance_constrained"]["fixed_alpha"]
 		@expression(model, Alpha[t=1:n.t, alpha=1:n.alpha],
 				data.plants[map.alpha[alpha]].g_max/(sum(pp.g_max for pp in data.plants[map.alpha])))
 		@expression(model, Alpha_Nodes[t=1:n.t, node=1:n.nodes],
@@ -412,6 +415,7 @@ function add_chance_constraints!(pomato::POMATO; fixed_alpha=true)
 			size(intersect(map.alpha, data.nodes[node].plants), 1) > 0 ?
 			sum(Alpha[t, alpha] for alpha in findall(x -> x in intersect(map.alpha, data.nodes[node].plants), map.alpha)) :
 				 0)
+		Alpha_Nodes = convert(Array{GenericAffExpr{Float64, VariableRef},2}, Alpha_Nodes)
 	end
 
 	@variable(model, T[1:n.t, 1:n.cb] >= 0)
@@ -422,7 +426,7 @@ function add_chance_constraints!(pomato::POMATO; fixed_alpha=true)
 
 	@info("Adding load flow constaints... ")
 	ptdf = vcat([data.grid[cb].ptdf' for cb in 1:n.cb]...)
-	@time for t in 1:n.t
+	for t in 1:n.t
 		create_alpha_loadflow_constraint!(model, ptdf, Alpha_Nodes, cc_res_to_node, Epsilon_root, t)
 	end
 	@info("PTDF constraints... ")

@@ -2,7 +2,9 @@
 include("../src/MarketModel.jl")
 import .MarketModel
 using Test, Logging
-using Clp
+using Clp, Mosek, MosekTools
+using JuMP, Gurobi
+
 
 ConsoleLogger(stdout, Logging.Info) |> global_logger
 
@@ -36,6 +38,30 @@ ConsoleLogger(stdout, Logging.Info) |> global_logger
 		end
 	end
 end
+
+
+# %%
+data_dir = "C:/Users/riw/tubCloud/Uni/Market_Tool/pomato_studies/data_temp/julia_files/data/"
+
+options, data = MarketModel.read_model_data(data_dir)
+options["timeseries"]["market_horizon"] = 1000
+options["redispatch"]["zonal_redispatch"] = false
+options["redispatch"]["include"] = false
+options["infeasibility"]["electricity"]["bound"] = 1000
+options["chance_constrained"] = Dict("include" => true, "fixed_alpha" => true,
+									 "cc_res_mw" => 50, "alpha_plants_mw" => 100)
+input_optimizer = Mosek
+data.folders["result_dir"] = cd(pwd, "..")*"/examples/results/cc_test/"
+result = MarketModel.run_market_model(data, options, input_optimizer)
+println("END")
+
+6.247446687089399e6 - 6.239262148775596e6
+
+6.239262148775596e6 - 6.208554750989224e6
+# %%
+
+Gurobi
+Gurobi.version
 
 
 # %%

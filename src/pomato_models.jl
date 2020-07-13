@@ -6,7 +6,7 @@ asd
 function add_optimizer!(pomato::POMATO)
 	global optimizer
 	set_optimizer(pomato.model, optimizer)
-	if string(optimizer.name) == "Gurobi.Optimizer"
+	if string(optimizer) == "Gurobi"
 		set_optimizer_attributes(pomato.model, "Method" => 0, "LogFile" => pomato.data.folders["result_dir"]*"/log.txt")
 	end
 end
@@ -48,10 +48,11 @@ function market_model(data::Data, options::Dict{String, Any})
 		add_dclf_constraints!(pomato)
 	end
 
-	if in(pomato.options["type"] , ["chance_constrained"])
+	if options["chance_constrained"]["include"]
 		@info("Adding Chance Constraints...")
-		@time add_chance_constraints!(pomato, fixed_alpha=true)
+		@time add_chance_constraints!(pomato)
 	end
+
 	if (pomato.options["constrain_nex"])
 		@info("Adding NEX Constraints...")
 		add_net_position_constraints!(pomato)

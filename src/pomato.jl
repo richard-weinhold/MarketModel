@@ -71,8 +71,8 @@ function POMATO(model::Model,
 			 es = findall(plant -> plant.plant_type in options["plant_types"]["es"], data.plants),
 			 hs = findall(plant -> plant.plant_type in options["plant_types"]["hs"], data.plants[map_he]),
 			 ph = findall(plant -> plant.plant_type in options["plant_types"]["ph"], data.plants[map_he]),
-			 alpha = findall(plant -> plant.g_max > 1000, data.plants),
-			 cc_res = findall(res_plants -> res_plants.g_max > 50, data.renewables))
+			 alpha = findall(plant -> plant.g_max > options["chance_constrained"]["alpha_plants_mw"], data.plants),
+			 cc_res = findall(res_plants -> res_plants.g_max > options["chance_constrained"]["cc_res_mw"], data.renewables))
 
 	m.n = (t = size(data.t, 1),
 		   zones = size(data.zones, 1),
@@ -93,7 +93,7 @@ function POMATO(model::Model,
 end
 
 function check_infeasibility(model::Model)
-	if string(optimizer.name) == "Gurobi.Optimizer"
+	if string(optimizer) == "Gurobi"
 		global optimizer_package
 		optimizer_package.compute_conflict(model.moi_backend.optimizer.model)
 		for constraint_types in list_of_constraint_types(model)

@@ -59,7 +59,7 @@ function run_market_model(data::Data, options::Dict{String, Any}, input_optimize
 	global optimizer = input_optimizer.Optimizer
 	global optimizer_package = input_optimizer
 	pomato_results = Dict{String, Result}()
-	if options["split_timeseries"]
+	if options["timeseries"]["split"]
 		data_full = deepcopy(data)
 		model_horizon_segments = split_timeseries_segments(data_full, options["timeseries"]["market_horizon"])
 		for timesteps in model_horizon_segments

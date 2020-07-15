@@ -3,8 +3,6 @@ include("../src/MarketModel.jl")
 import .MarketModel
 using Test, Logging
 using Clp
-# using Mosek, MosekTools
-# using JuMP, Gurobi
 
 
 ConsoleLogger(stdout, Logging.Info) |> global_logger
@@ -42,8 +40,13 @@ end
 
 
 # %%
-# data_dir = "C:/Users/riw/tubCloud/Uni/Market_Tool/pomato_studies/data_temp/julia_files/data/"
+# using Mosek, MosekTools
+# using JuMP, Gurobi
+# result_dir = cd(pwd, "..")*"/examples/results/asdasd/"
 #
+# data_dir = "C:/Users/riw/tubCloud/Uni/Market_Tool/pomato_studies/data_temp/julia_files/data/"
+# result = MarketModel.run_market_model(data_dir, result_dir, Gurobi,
+# 									  redispatch=true, return_result=true)
 # options, data = MarketModel.read_model_data(data_dir)
 # options["timeseries"]["market_horizon"] = 1000
 # options["redispatch"]["zonal_redispatch"] = false

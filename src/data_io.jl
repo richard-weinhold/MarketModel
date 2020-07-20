@@ -1,4 +1,3 @@
-
 mutable struct RAW
     options::Dict{String, Any}
     model_horizon::DataFrame

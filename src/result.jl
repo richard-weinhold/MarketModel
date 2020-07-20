@@ -42,6 +42,7 @@ function Result(pomato::POMATO)
 	result.misc_results["COST_H"] = typeof(pomato.model[:COST_H]) == GenericAffExpr{Float64, VariableRef} ?  JuMP.value(pomato.model[:COST_H]) : 0
 	result.misc_results["COST_EX"] = JuMP.value(pomato.model[:COST_EX])
 	result.misc_results["COST_CURT"] = JuMP.value(pomato.model[:COST_CURT])
+	result.misc_results["COST_REDISPATCH"] = JuMP.value(pomato.model[:COST_REDISPATCH])
 	result.misc_results["COST_INEAS_EL"] = JuMP.value(pomato.model[:COST_INFEAS_EL])
 	# result.misc_results["COST_INEAS_H"] = JuMP.value(pomato.model[:COST_INFEAS_H])
 	result.misc_results["COST_INEAS_H"] = typeof(pomato.model[:COST_INFEAS_H]) == GenericAffExpr{Float64, VariableRef} ?  JuMP.value(pomato.model[:COST_INFEAS_H]) : 0
@@ -63,6 +64,7 @@ function concat_results(results::Dict{String, Result})
 	r.misc_results["COST_H"] = sum([results[k].misc_results["COST_H"] for k in keys(results)])
 	r.misc_results["COST_EX"] = sum([results[k].misc_results["COST_EX"] for k in keys(results)])
 	r.misc_results["COST_CURT"] = sum([results[k].misc_results["COST_CURT"] for k in keys(results)])
+	r.misc_results["COST_REDISPATCH"] = sum([results[k].misc_results["COST_REDISPATCH"] for k in keys(results)])
 	r.misc_results["COST_INEAS_EL"] = sum([results[k].misc_results["COST_INEAS_EL"] for k in keys(results)])
 	r.misc_results["COST_INEAS_H"] = sum([results[k].misc_results["COST_INEAS_H"] for k in keys(results)])
 

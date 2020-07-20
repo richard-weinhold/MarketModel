@@ -106,6 +106,8 @@ function add_variables_expressions!(pomato::POMATO)
 	@expression(model, COST_INFEAS_H, (sum(INFEAS_H_POS)
 		+ sum(INFEAS_H_NEG))*options["infeasibility"]["heat"]["cost"]);
 	@expression(model, COST_CURT, GenericAffExpr{Float64, VariableRef}(0));
+	@expression(model, COST_REDISPATCH, GenericAffExpr{Float64, VariableRef}(0));
+
 end
 
 function add_objective!(pomato::POMATO)
@@ -272,6 +274,10 @@ function add_curtailment_constraints!(pomato::POMATO, zones::Vector{String})
 
 	res_in_zone = findall(r -> r.node in redispatch_zones_nodes, data.renewables)
 	@variable(model, CURT[1:n.t, res_in_zone] >= 0)
+
+	@constraint(model, MaxCurt[t=1:n.t, res=res_in_zone],
+		CURT[t, res] <= data.renewables[res].mu[t])
+
 	G_RES = model[:G_RES]
 	RES_Node = model[:RES_Node]
 	RES_Zone = model[:RES_Zone]
@@ -292,6 +298,10 @@ end
 function add_curtailment_constraints!(pomato::POMATO)
 	model, n, map, data = pomato.model, pomato.n, pomato.map, pomato.data
 	@variable(model, CURT[1:n.t, 1:n.res] >= 0)
+	
+	@constraint(model, MaxCurt[t=1:n.t, res=1:n.res],
+		CURT[t, res] <= data.renewables[res].mu[t])
+
 	G_RES = model[:G_RES]
 	RES_Node = model[:RES_Node]
 	RES_Zone = model[:RES_Zone]
@@ -320,10 +330,10 @@ function add_flowbased_constraints!(pomato::POMATO)
 	EX = model[:EX]
 	if any(isdefined(cb, :timestep) for cb in data.grid)
 		@info("adding timedependant zonal PTDF...")
-		@constraint(model, [t=1:n.t], vcat([cb.ptdf' for cb in filter(cb -> cb.timestep == data.t[t].name, data.grid)]...) * sum(EX[1, :, zz] - EX[1, zz, :] for zz in 1:n.zones)
+		@constraint(model, [t=1:n.t], vcat([cb.ptdf' for cb in filter(cb -> cb.timestep == data.t[t].name, data.grid)]...) * sum(EX[t, :, zz] - EX[t, zz, :] for zz in 1:n.zones)
 			.<= [cb.ram for cb in filter(cb -> cb.timestep == data.t[t].name, data.grid)]);
 	else
-		@constraint(model, [t=1:n.t], vcat([cb.ptdf' for cb in data.grid]...) * sum(EX[1, :, zz] - EX[1, zz, :] for zz in 1:n.zones)
+		@constraint(model, [t=1:n.t], vcat([cb.ptdf' for cb in data.grid]...) * sum(EX[t, :, zz] - EX[t, zz, :] for zz in 1:n.zones)
 		.<= [cb.ram for cb in data.grid]);
 	end
 end

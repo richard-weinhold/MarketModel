@@ -185,11 +185,11 @@ function populate_grid(raw::RAW)
             newcbco.reference_flow = Dict(collect(zip(raw.reference_flows[:, :index],
                                                       raw.reference_flows[:, Symbol(index)])))
         end
-        if :zone in names(raw.grid)
+        if "zone" in string.(names(raw.grid))
             newcbco.zone_i = coalesce(raw.grid[cbco, :zone_i], nothing)
             newcbco.zone_j = coalesce(raw.grid[cbco, :zone_j], nothing)
         end
-        if :timestep in names(raw.grid)
+        if "timestep" in string.(names(raw.grid))
             newcbco.timestep = raw.grid[cbco, :timestep]
         end
         push!(grid, newcbco)

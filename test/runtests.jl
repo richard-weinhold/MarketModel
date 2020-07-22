@@ -38,7 +38,6 @@ ConsoleLogger(stdout, Logging.Info) |> global_logger
 	end
 end
 
-
 # %%
 # using Mosek, MosekTools
 # using JuMP, Gurobi
@@ -62,8 +61,22 @@ end
 
 # %%
 # data_dir = "C:/Users/riw/tubCloud/Uni/Market_Tool/pomato_studies/data_temp/julia_files/data/"
-# #
+# # #
 # options, data = MarketModel.read_model_data(data_dir)
+#
+# data.grid
+# t = 1
+# vcat([cb.ptdf' for cb in filter(cb -> cb.timestep == data.t[t].name, data.grid)]...)
+#
+# filter(cb -> cb.timestep == data.t[t].name, data.grid)
+#
+# string.([:tasd, :tsds])
+# raw = MarketModel.RAW(data_dir)
+
+# "timestep" in names(raw.grid)
+ # * sum(EX[t, :, zz] - EX[t, zz, :] for zz in 1:n.zones)
+ #   .<= [cb.ram for cb in filter(cb -> cb.timestep == data.t[t].name, data.grid)]);
+
 # options["redispatch"]["zonal_redispatch"] = false
 # options["infeasibility"]["electricity"]["bound"] = 0
 # optimizer = Gurobi.Optimizer

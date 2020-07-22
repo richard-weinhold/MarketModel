@@ -35,7 +35,7 @@ function run_market_model(data_dir::String, result_dir::String, input_optimizer;
 	@info("Read Model Data..")
 
 	options, data = read_model_data(data_dir)
-	data.folders["result_dir"] = result_dir*Dates.format(now(), "dmm_HHMM")
+	data.folders["result_dir"] = result_dir*Dates.format(now(), "dmm_HHMM_SSsss")
 
 	create_folder(data.folders["result_dir"])
 	if !("split_timeseries" in keys(options))

@@ -5,9 +5,10 @@ asd
 
 function add_optimizer!(pomato::POMATO)
 	global optimizer
+	global optimizer_package
 	set_optimizer(pomato.model, optimizer)
-	if string(optimizer) == "Gurobi"
-		set_optimizer_attributes(pomato.model, "Method" => 0, "LogFile" => pomato.data.folders["result_dir"]*"/log.txt")
+	if string(optimizer_package) == "Gurobi"
+		set_optimizer_attributes(pomato.model, "Method" => 1, "LogFile" => pomato.data.folders["result_dir"]*"/log.txt")
 	end
 end
 
@@ -79,7 +80,11 @@ function market_model(data::Data, options::Dict{String, Any})
 end
 
 function redispatch_model(data::Data, options::Dict{String, Any})
+
+	set_rt_timeseries!(data)
 	pomato = market_model(data, options)
+	set_rt_timeseries!(pomato.data)
+
 	redispatch_results = Dict{String, Result}()
 	redispatch_results["market_results"] = pomato.result
 

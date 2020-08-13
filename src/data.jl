@@ -93,15 +93,18 @@ mutable struct Node
     zone::Int
     slack::Bool
     demand::Array
+    demand_rt::Array
+    real_time::Bool
     plants::Array
     res_plants::Array
     # Optional Attributes
     net_export::Array
     slack_zone::Array
+    demand_da::Array
     function Node(index::Int,
                   name::Any,
                   zone::Int,
-                  demand::Array,
+                  demand_rt::Array,
                   slack::Bool,
                   plants::Array,
                   res_plants::Array)
@@ -109,7 +112,10 @@ mutable struct Node
         n.index = index
         n.name = name
         n.zone = zone
-        n.demand = demand
+        n.demand_rt = demand_rt
+        n.demand = demand_rt
+        n.real_time = true
+
         n.slack = slack
         n.plants = plants
         n.res_plants = res_plants
@@ -124,16 +130,30 @@ mutable struct Renewables
         h_max::Float64
         mc_el::Float64
         mc_heat::Float64
+
+        real_time::Bool
         mu::Array
+        mu_rt::Array
+        mu_da::Array
+
         mu_heat::Array
+        mu_heat_rt::Array
+        mu_heat_da::Array
+
+        sigma_factor::Float64
         sigma::Array
+        sigma_rt::Array
+        sigma_da::Array
+
         sigma_heat::Array
+        sigma_heat_rt::Array
+        sigma_heat_da::Array
         node::Int
         plant_type::Any
         function Renewables(index::Int, name::Any,
                             g_max::Float64, h_max::Float64,
                             mc_el::Float64, mc_heat::Float64,
-                            availability::Array, node::Int, plant_type::Any)
+                            availability_rt::Array, node::Int, plant_type::Any)
             res = new()
             res.index = index
             res.g_max = g_max
@@ -141,11 +161,22 @@ mutable struct Renewables
             res.mc_el = mc_el
             res.mc_heat = mc_heat
             res.name = name
-            factor_sigma =  0.3
-            res.mu = availability * g_max
-            res.mu_heat = availability * h_max
-            res.sigma = (availability * factor_sigma)*g_max
-            res.sigma_heat = (availability * factor_sigma)*h_max
+            res.sigma_factor =  0.3
+
+            res.mu_rt = availability_rt * g_max
+            res.mu = res.mu_rt
+
+            res.mu_heat_rt = availability_rt * h_max
+            res.mu_heat = res.mu_heat_rt
+
+            res.sigma_rt = (availability_rt * res.sigma_factor)*g_max
+            res.sigma = res.sigma_rt
+
+            res.sigma_heat_rt = (availability_rt * res.sigma_factor)*h_max
+            res.sigma_heat = res.sigma_heat_rt
+
+            res.real_time = true
+
             res.node = node
             res.plant_type = plant_type
             return res

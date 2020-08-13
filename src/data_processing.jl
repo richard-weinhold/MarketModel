@@ -58,7 +58,8 @@ function populate_zones(raw::RAW)
         end
 
         net_export = combine(groupby(filter(col -> col[:node] in nodes_name, raw.net_export), :timestep, sort=true), :net_export => sum)
-        newz.net_export = net_export[:, :net_export_sum]
+        newz.net_export = (size(net_export, 1) > 0 ? net_export[:, :net_export_sum] :
+                           zeros(length(raw.model_horizon[:, :timesteps])))
 
         net_position = combine(groupby(filter(col -> col[:zone] == name, raw.net_position), :timestep, sort=true), :net_position => sum)
         if size(net_position, 1) > 0
@@ -86,8 +87,16 @@ function populate_nodes(raw::RAW)
             slack_zone = raw.slack_zones[:, :index][raw.slack_zones[:, Symbol(name)] .== 1]
             newn.slack_zone = filter(col -> col[:index] in slack_zone, raw.nodes)[:, :int_idx]
         end
+
         net_export = combine(groupby(filter(col -> col[:node] == name, raw.net_export), :timestep, sort=true), :net_export => sum)
-        newn.net_export = net_export[:, :net_export_sum]
+        newn.net_export = (size(net_export, 1) > 0 ? net_export[:, :net_export_sum] :
+                           zeros(length(raw.model_horizon[:, :timesteps])))
+
+        if "demand_el_da" in string.(names(raw.demand_el))
+            demand_el_da = combine(groupby(filter(col -> col[:node] == name, raw.demand_el),
+                                      :timestep, sort=true), :demand_el_da => sum)
+            newn.demand_da =  demand_el_da[:, :demand_el_da_sum]
+        end
         push!(nodes, newn)
     end
     return nodes
@@ -123,7 +132,9 @@ function populate_plants(raw::RAW)
         newp = Plant(index, name, node_idx, mc_el,
                      mc_heat, eta, g_max, h_max, plant_type)
         if plant_type in union(raw.plant_types["hs"], raw.plant_types["es"])
-            newp.inflow = raw.inflows[raw.inflows[:, :plant] .== name, :inflow]
+            inflow_data = raw.inflows[raw.inflows[:, :plant] .== name, :inflow]
+            newp.inflow = (length(inflow_data) > 0 ? inflow_data :
+                           zeros(length(raw.model_horizon[:, :timesteps])))
             newp.storage_capacity = raw.plants[p, :storage_capacity]
         end
         push!(plants, newp)
@@ -148,6 +159,14 @@ function populate_res_plants(raw::RAW)
         newres = Renewables(index, name, g_max, h_max, mc_el, mc_heat,
                             availability[:, :availability_sum],
                             node_idx, plant_type)
+        if "availability_da" in string.(names(raw.availability))
+            availability_da = combine(groupby(filter(col -> col[:plant] == name, raw.availability),
+                                      :timestep, sort=true), :availability_da => sum)
+            newres.mu_da = availability_da[:, :availability_da_sum] .* g_max
+            newres.mu_heat_da = availability_da[:, :availability_da_sum] .* h_max
+            newres.sigma_da = (availability_da[:, :availability_da_sum] * newres.sigma_factor)*g_max
+            newres.sigma_heat_da = (availability_da[:, :availability_da_sum] * newres.sigma_factor)*h_max
+        end
         push!(res_plants, newres)
     end
     return res_plants
@@ -197,7 +216,7 @@ function populate_grid(raw::RAW)
     return grid
 end
 
-function set_model_horizon!(data)
+function set_model_horizon!(data::Data)
 	timesteps = [t.index for t in data.t]
 	for n in data.nodes
 		n.demand = n.demand[timesteps]
@@ -216,5 +235,51 @@ function set_model_horizon!(data)
 		res.mu_heat = res.mu_heat[timesteps]
 		res.sigma = res.sigma[timesteps]
 		res.sigma_heat = res.sigma_heat[timesteps]
+	end
+end
+
+function set_da_timeseries!(data::Data)
+
+    if all(isdefined(res, :mu_da) for res in data.renewables)
+        @info("Using Day Ahead timeseries for availability")
+    	for res in data.renewables
+    		res.mu = copy(res.mu_da)
+    		res.mu_heat = copy(res.mu_heat_da)
+    		res.sigma = copy(res.sigma_da)
+    		res.sigma_heat = copy(res.sigma_heat_da)
+            res.real_time = false
+    	end
+    else
+        @info("No DA timeseries for availability, using RT data!")
+    end
+    if all(isdefined(node, :demand_da) for node in data.nodes)
+        @info("Using Day Ahead timeseries for demand")
+    	for node in data.nodes
+    		node.demand = copy(node.demand_da)
+            node.real_time = false
+    	end
+    	for zone in data.zones
+    		zone.demand = sum(n.demand for n in data.nodes[zone.nodes])
+    	end
+    else
+        @info("No DA timeseries for demand, using RT data!")
+    end
+end
+
+function set_rt_timeseries!(data::Data)
+    @info("Using Real Time timeseries")
+	for res in data.renewables
+		res.mu = copy(res.mu_rt)
+		res.mu_heat = copy(res.mu_heat_rt)
+		res.sigma = copy(res.sigma_rt)
+		res.sigma_heat = copy(res.sigma_heat_rt)
+        res.real_time = false
+	end
+	for node in data.nodes
+		node.demand = copy(node.demand_rt)
+        node.real_time = false
+	end
+	for zone in data.zones
+		zone.demand = sum(n.demand for n in data.nodes[zone.nodes])
 	end
 end

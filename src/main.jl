@@ -1,9 +1,5 @@
 """ Run the models, defined in create_model.jl"""
 
-function set_global_optimizer(input_optimizer)
-	global optimizer = input_optimizer
-end
-
 function set_logger()
 	# global_logger(ConsoleLogger(stdout, Logging.Info))
 	if isfile(pwd()*"/logs/RedundancyRemoval.log")

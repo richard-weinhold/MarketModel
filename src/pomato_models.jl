@@ -8,7 +8,9 @@ function add_optimizer!(pomato::POMATO)
 	global optimizer_package
 	set_optimizer(pomato.model, optimizer)
 	if string(optimizer_package) == "Gurobi"
-		set_optimizer_attributes(pomato.model, "Method" => 1, "LogFile" => pomato.data.folders["result_dir"]*"/log.txt")
+		set_optimizer_attributes(pomato.model, "Method" => 1,
+								 "Threads" => Threads.nthreads() - 2,
+								 "LogFile" => pomato.data.folders["result_dir"]*"/log.txt")
 	end
 end
 
@@ -44,7 +46,7 @@ function market_model(data::Data, options::Dict{String, Any})
 		add_flowbased_constraints!(pomato)
 	end
 
-	if in(pomato.options["type"] , ["cbco_nodal", "nodal"])
+	if in(pomato.options["type"] , ["cbco_nodal", "nodal"]) & !options["chance_constrained"]["include"]
 		@info("Adding Load Flow Constraints...")
 		add_dclf_constraints!(pomato)
 	end

@@ -298,7 +298,7 @@ end
 function add_curtailment_constraints!(pomato::POMATO)
 	model, n, map, data = pomato.model, pomato.n, pomato.map, pomato.data
 	@variable(model, CURT[1:n.t, 1:n.res] >= 0)
-	
+
 	@constraint(model, MaxCurt[t=1:n.t, res=1:n.res],
 		CURT[t, res] <= data.renewables[res].mu[t])
 
@@ -317,13 +317,25 @@ function add_curtailment_constraints!(pomato::POMATO)
 	add_to_expression!(COST_CURT, sum(CURT*pomato.options["curtailment"]["cost"]))
 end
 
+# function add_dclf_constraints!(pomato::POMATO)
+# 	model, n, data = pomato.model, pomato.n, pomato.data
+# 	INJ = model[:INJ]
+# 	ptdf = vcat([data.grid[cb].ptdf' for cb in 1:n.cb]...)
+# 	@constraint(model, [t=1:n.t], ptdf * INJ[t, :] .<= [data.grid[cb].ram for cb in 1:n.cb]);
+# 	@constraint(model, [t=1:n.t], -ptdf * INJ[t, :] .<= [data.grid[cb].ram for cb in 1:n.cb]);
+# end
+
 function add_dclf_constraints!(pomato::POMATO)
 	model, n, data = pomato.model, pomato.n, pomato.data
 	INJ = model[:INJ]
 	ptdf = vcat([data.grid[cb].ptdf' for cb in 1:n.cb]...)
-	@constraint(model, [t=1:n.t], ptdf * INJ[t, :] .<= [data.grid[cb].ram for cb in 1:n.cb]);
-	@constraint(model, [t=1:n.t], -ptdf * INJ[t, :] .<= [data.grid[cb].ram for cb in 1:n.cb]);
+	@variable(model, F_pos[1:n.t, 1:n.cb] >= 0)
+	@variable(model, F_neg[1:n.t, 1:n.cb] >= 0)
+	@constraint(model, [t=1:n.t], ptdf * INJ[t, :] .== F_pos[t, :] .- F_neg[t, :]);
+	@constraint(model, [t=1:n.t], F_pos[t, :] .<= [data.grid[cb].ram for cb in 1:n.cb]);
+	@constraint(model, [t=1:n.t], F_neg[t, :] .<= [data.grid[cb].ram for cb in 1:n.cb]);
 end
+
 
 function add_flowbased_constraints!(pomato::POMATO)
 	model, n, data = pomato.model, pomato.n, pomato.data
@@ -380,7 +392,6 @@ function create_alpha_loadflow_constraint!(model::Model,
 	   		end
 		end
 	end
-	@info("Adding Load Flow Constraint")
 	T = model[:T]
 	@constraint(model, [cb=1:size(ptdf, 1)], vec(vcat(T[t, cb], (alpha_loadflow[cb, :]'*Epsilon_root[t])')) in SecondOrderCone());
 	@info("Done for t = $(t)")
@@ -440,8 +451,15 @@ function add_chance_constraints!(pomato::POMATO)
 		create_alpha_loadflow_constraint!(model, ptdf, Alpha_Nodes, cc_res_to_node, Epsilon_root, t)
 	end
 	@info("PTDF constraints... ")
-	@constraint(model, [t=1:n.t], ptdf * INJ[t, :] .+ z*T[t, :] .<= [data.grid[cb].ram for cb in 1:n.cb]);
-	@constraint(model, [t=1:n.t], -ptdf * INJ[t, :] .+ z*T[t, :] .<= [data.grid[cb].ram for cb in 1:n.cb]);
+ 	@variable(model, F_pos[1:n.t, 1:n.cb] >= 0)
+	@variable(model, F_neg[1:n.t, 1:n.cb] >= 0)
+
+	@constraint(model, [t=1:n.t], ptdf * INJ[t, :] .== F_pos[t, :] .- F_neg[t, :]);
+	@constraint(model, [t=1:n.t], F_pos[t, :] .+ z*T[t, :] .<= [data.grid[cb].ram for cb in 1:n.cb]);
+	@constraint(model, [t=1:n.t], F_neg[t, :] .+ z*T[t, :] .<= [data.grid[cb].ram for cb in 1:n.cb]);
+
+	# @constraint(model, [t=1:n.t], ptdf * INJ[t, :] .+ z*T[t, :] .<= [data.grid[cb].ram for cb in 1:n.cb]);
+	# @constraint(model, [t=1:n.t], -ptdf * INJ[t, :] .+ z*T[t, :] .<= [data.grid[cb].ram for cb in 1:n.cb]);
 end
 
 
@@ -554,9 +572,16 @@ function redispatch_model!(pomato::POMATO, market_model_results::Dict, redispatc
 	redispatch_zones_grid = filter(cb -> (data.grid[cb].zone_i in redispatch_zones)&(data.grid[cb].zone_j in redispatch_zones), 1:n.cb)
 	@info("$(length(redispatch_zones_grid)) lines part of the redispatch network")
 
+	# ptdf = vcat([data.grid[cb].ptdf' for cb in redispatch_zones_grid]...)
+	# @constraint(model, [t=1:n.t], ptdf * INJ[t, :] .<= [data.grid[cb].ram for cb in redispatch_zones_grid]);
+	# @constraint(model, [t=1:n.t], -ptdf * INJ[t, :] .<= [data.grid[cb].ram for cb in redispatch_zones_grid]);
+
 	ptdf = vcat([data.grid[cb].ptdf' for cb in redispatch_zones_grid]...)
-	@constraint(model, [t=1:n.t], ptdf * INJ[t, :] .<= [data.grid[cb].ram for cb in redispatch_zones_grid]);
-	@constraint(model, [t=1:n.t], -ptdf * INJ[t, :] .<= [data.grid[cb].ram for cb in redispatch_zones_grid]);
+	@variable(model, F_pos[1:n.t, redispatch_zones_grid] >= 0)
+	@variable(model, F_neg[1:n.t, redispatch_zones_grid] >= 0)
+	@constraint(model, [t=1:n.t], ptdf * INJ[t, :] .== [F_pos[t, cb] - F_neg[t, cb] for cb in redispatch_zones_grid]);
+	@constraint(model, [t=1:n.t, cb=redispatch_zones_grid], F_pos[t, cb] .<= data.grid[cb].ram);
+	@constraint(model, [t=1:n.t, cb=redispatch_zones_grid], F_neg[t, cb] .<= data.grid[cb].ram);
 
 	@objective(model, Min, COST_G + COST_EX + COST_INFEAS_EL + COST_CURT + COST_REDISPATCH);
 end

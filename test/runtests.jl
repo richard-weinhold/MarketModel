@@ -42,14 +42,12 @@ end
 # include("../src/MarketModel.jl")
 # import .MarketModel
 # using Test, Logging
-# using Clp, Gurobi
+# using Clp, Gurobi, Mosek, MosekTools
 # using DataFrames
-#
+
 # data_dir = "C:/Users/riw/tubCloud/Uni/Market_Tool/pomato_studies/data_temp/julia_files/data/"
-# options, data = MarketModel.read_model_data(data_dir)
-# raw = MarketModel.RAW(data_dir)
-#
+# # options, data = MarketModel.read_model_data(data_dir)
+# # raw = MarketModel.RAW(data_dir)
+
 # result_dir = cd(pwd, "..")*"/examples/results/"
-# result = MarketModel.run_market_model(data_dir, result_dir, Gurobi, return_result=true)
-#
-# pomato = MarketModel.POMATO(MarketModel.Model(), data, options)
+# @time result = MarketModel.run_market_model(data_dir, result_dir, Mosek, return_result=true, redispatch=false)

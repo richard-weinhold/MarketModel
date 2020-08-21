@@ -1,2 +1,4 @@
 examples/results/
 test/test_env/
+.vscode/launch.json
+.vscode/settings.json

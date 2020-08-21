@@ -4,7 +4,6 @@ import .MarketModel
 using Test, Logging
 using Clp
 
-
 ConsoleLogger(stdout, Logging.Info) |> global_logger
 
 # %%
@@ -39,6 +38,8 @@ ConsoleLogger(stdout, Logging.Info) |> global_logger
 end
 
 # %%
+# cd("test")
+# pwd()
 # include("../src/MarketModel.jl")
 # import .MarketModel
 # using Test, Logging
@@ -50,4 +51,6 @@ end
 # # raw = MarketModel.RAW(data_dir)
 
 # result_dir = cd(pwd, "..")*"/examples/results/"
-# @time result = MarketModel.run_market_model(data_dir, result_dir, Mosek, return_result=true, redispatch=false)
+# @time result = MarketModel.run_market_model(data_dir, result_dir, Mosek, return_result=true, redispatch=true)
+
+# println("Done")

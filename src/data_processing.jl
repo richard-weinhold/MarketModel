@@ -200,10 +200,6 @@ function populate_grid(raw::RAW)
         end
         ram = raw.grid[cbco, :ram]*1.
         newcbco = Grid(index, name, ptdf, ram)
-        if in(raw.options["type"], ["d2cf"])
-            newcbco.reference_flow = Dict(collect(zip(raw.reference_flows[:, :index],
-                                                      raw.reference_flows[:, Symbol(index)])))
-        end
         if "zone" in string.(names(raw.grid))
             newcbco.zone_i = coalesce(raw.grid[cbco, :zone_i], nothing)
             newcbco.zone_j = coalesce(raw.grid[cbco, :zone_j], nothing)

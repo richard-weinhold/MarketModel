@@ -4,21 +4,29 @@ function read_model_data(data_dir::String)
     @info("Reading Model Data from: $(data_dir)")
     raw = RAW(data_dir)
 
-    task_zones = Threads.@spawn populate_zones(raw)
-    task_nodes = Threads.@spawn populate_nodes(raw)
-    task_heatareas = Threads.@spawn populate_heatareas(raw)
-    task_plants = Threads.@spawn populate_plants(raw)
-    task_res_plants = Threads.@spawn populate_res_plants(raw)
-    task_dc_lines = Threads.@spawn populate_dclines(raw)
-    task_grid = Threads.@spawn populate_grid(raw)
+    zones = populate_zones(raw)
+    nodes = populate_nodes(raw)
+    heatareas = populate_heatareas(raw)
+    plants = populate_plants(raw)
+    res_plants = populate_res_plants(raw)
+    dc_lines = populate_dclines(raw)
+    grid = populate_grid(raw)
 
-    zones = fetch(task_zones)
-    nodes = fetch(task_nodes)
-    heatareas = fetch(task_heatareas)
-    plants = fetch(task_plants)
-    res_plants = fetch(task_res_plants)
-    dc_lines = fetch(task_dc_lines)
-    grid = fetch(task_grid)
+    # task_zones = Threads.@spawn populate_zones(raw)
+    # task_nodes = Threads.@spawn populate_nodes(raw)
+    # task_heatareas = Threads.@spawn populate_heatareas(raw)
+    # task_plants = Threads.@spawn populate_plants(raw)
+    # task_res_plants = Threads.@spawn populate_res_plants(raw)
+    # task_dc_lines = Threads.@spawn populate_dclines(raw)
+    # task_grid = Threads.@spawn populate_grid(raw)
+
+    # zones = fetch(task_zones)
+    # nodes = fetch(task_nodes)
+    # heatareas = fetch(task_heatareas)
+    # plants = fetch(task_plants)
+    # res_plants = fetch(task_res_plants)
+    # dc_lines = fetch(task_dc_lines)
+    # grid = fetch(task_grid)
 
     timesteps = populate_timesteps(raw)
     data = Data(nodes, zones, heatareas, plants, res_plants, grid, dc_lines, timesteps)
@@ -135,6 +143,8 @@ function populate_plants(raw::RAW)
             inflow_data = raw.inflows[raw.inflows[:, :plant] .== name, :inflow]
             newp.inflow = (length(inflow_data) > 0 ? inflow_data :
                            zeros(length(raw.model_horizon[:, :timesteps])))
+            
+            newp.storage_level = raw.storage_level[raw.storage_level[:, :plant] .== name, :storage_level]
             newp.storage_capacity = raw.plants[p, :storage_capacity]
         end
         push!(plants, newp)
@@ -212,6 +222,31 @@ function populate_grid(raw::RAW)
     return grid
 end
 
+function set_model_horizon!(data::Data, split::Int)
+	timesteps = [t.index for t in data.t]
+	for n in data.nodes
+		n.demand = n.demand[timesteps]
+		n.net_export = n.net_export[timesteps]
+	end
+	for z in data.zones
+		z.demand = z.demand[timesteps]
+		if any([isdefined(z, :net_position) for z in data.zones])
+			z.net_position = z.net_position[timesteps]
+		end
+		z.net_export = z.net_export[timesteps]
+	end
+    for p in filter(plant -> isdefined(plant, :storage_level), data.plants)
+        p.storage_start = p.storage_level[split]
+        p.storage_end = split + 1 < length(p.storage_level) ? p.storage_level[split + 1] : p.storage_level[1]
+    end
+    for res in data.renewables
+		res.mu = res.mu[timesteps]
+		res.mu_heat = res.mu_heat[timesteps]
+		res.sigma = res.sigma[timesteps]
+		res.sigma_heat = res.sigma_heat[timesteps]
+	end
+end
+
 function set_model_horizon!(data::Data)
 	timesteps = [t.index for t in data.t]
 	for n in data.nodes
@@ -225,8 +260,7 @@ function set_model_horizon!(data::Data)
 		end
 		z.net_export = z.net_export[timesteps]
 	end
-
-	for res in data.renewables
+    for res in data.renewables
 		res.mu = res.mu[timesteps]
 		res.mu_heat = res.mu_heat[timesteps]
 		res.sigma = res.sigma[timesteps]

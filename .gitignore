@@ -1,4 +1,5 @@
 examples/results/
 test/test_env/
+test/local_testing.jl
 .vscode/launch.json
 .vscode/settings.json

@@ -50,7 +50,8 @@ function run_market_model(data_dir::String, result_dir::String, input_optimizer;
 	@info("Everything Done!")
 end
 
-function run_market_model(data::Data, options::Dict{String, Any}, input_optimizer)
+function run_market_model(data::Data, options::Dict{String, Any}, input_optimizer; 
+						  save::Bool=true)
 
 	global optimizer = input_optimizer.Optimizer
 	global optimizer_package = input_optimizer
@@ -58,17 +59,19 @@ function run_market_model(data::Data, options::Dict{String, Any}, input_optimize
 	if options["timeseries"]["split"]
 		data_full = deepcopy(data)
 		model_horizon_segments = split_timeseries_segments(data_full, options["timeseries"]["market_horizon"])
-		for timesteps in model_horizon_segments
+		for (i,timesteps) in enumerate(model_horizon_segments)
 			data = deepcopy(data_full)
 			data.t = data.t[timesteps]
-			set_model_horizon!(data)
+			set_model_horizon!(data, i)
 			@info("Initializing Market Model for timestep $(data.t[1].name)...")
 			pomato_results[data.t[1].name] = market_model(data, options).result
 		end
 	else
 		pomato_results[data.t[1].name] = market_model(data, options).result
 	end
-	save_result(concat_results(pomato_results), data.folders["result_dir"])
+	if save
+		save_result(concat_results(pomato_results), data.folders["result_dir"])
+	end
 	return pomato_results
 end
 
@@ -76,10 +79,12 @@ function run_market_model_redispatch(data::Data, options::Dict{String, Any}, inp
 
 	global optimizer = input_optimizer.Optimizer
 	global optimizer_package = input_optimizer
-	pomato_results = redispatch_model(data, options)
-	for result in keys(pomato_results)
-		save_result(pomato_results[result], data.folders["result_dir"]*"_"*result)
+
+	market_result = concat_results(run_market_model(data, options, input_optimizer, save=false))
+	redispatch_results = redispatch_model(market_result, data, options)
+	for result in keys(redispatch_results)
+		save_result(redispatch_results[result], data.folders["result_dir"]*"_"*result)
 	end
 	@info("Everything Done!")
-	return pomato_results
+	return redispatch_results
 end

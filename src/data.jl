@@ -198,6 +198,10 @@ mutable struct Plant
     # Optional Attributes
     storage_capacity::Float64
     inflow::Array
+    storage_start::Float64
+    storage_end::Float64
+    storage_level::Array
+    
     function Plant(index::Int,
                    name::Any,
                    node::Int,

@@ -15,6 +15,7 @@ mutable struct RAW
     net_position::DataFrame
     net_export::DataFrame
     inflows::DataFrame
+    storage_level::DataFrame
     reference_flows::DataFrame
     grid::DataFrame
     slack_zones::DataFrame
@@ -43,7 +44,8 @@ mutable struct RAW
         raw.net_position = DataFrame!(CSV.File(data_dir*"net_position.csv"))
         raw.net_export = DataFrame!(CSV.File(data_dir*"net_export.csv"))
         raw.inflows = DataFrame!(CSV.File(data_dir*"inflows.csv"))
-        # raw.reference_flows = DataFrame!(CSV.File(data_dir*"reference_flows.csv");)
+        raw.storage_level = DataFrame!(CSV.File(data_dir*"storage_level.csv"))
+
         raw.grid = DataFrame!(CSV.File(data_dir*"grid.csv"))
         raw.slack_zones = DataFrame!(CSV.File(data_dir*"slack_zones.csv"))
         raw.model_horizon = DataFrame(index=collect(1:size(unique(raw.demand_el[:, :timestep]), 1)),

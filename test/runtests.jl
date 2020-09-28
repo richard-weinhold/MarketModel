@@ -1,5 +1,5 @@
 
-
+# cd(pwd()*"/test")
 include("../src/MarketModel.jl")
 import .MarketModel
 using Test, Logging

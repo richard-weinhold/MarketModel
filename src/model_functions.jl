@@ -341,7 +341,7 @@ function add_flowbased_constraints!(pomato::POMATO)
 	EX = model[:EX]
 	# zonal PTDF * NEX <= Capacity
 	# For FB Domain PTDF contains upper and lower bounds and it is time dependant
-	# For the Zonal PTDF Bounds are symmertrical, therefore we need two constraints
+	# For the Zonal PTDF Bounds are symmetrical, therefore we need two constraints
 	if any(isdefined(cb, :timestep) for cb in data.grid)
 		@info("adding FB Domain for each timestep")
 		@constraint(model, [t=1:n.t], vcat([cb.ptdf' for cb in filter(cb -> cb.timestep == data.t[t].name, data.grid)]...) * sum(EX[t, :, zz] - EX[t, zz, :] for zz in 1:n.zones)

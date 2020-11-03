@@ -17,7 +17,10 @@ mutable struct RAW
     inflows::DataFrame
     storage_level::DataFrame
     reference_flows::DataFrame
+    lines::DataFrame
     grid::DataFrame
+    redispatch_grid::DataFrame
+    contingency_groups::Dict{String, Array{String}}
     slack_zones::DataFrame
 
     function RAW(data_dir)
@@ -46,30 +49,15 @@ mutable struct RAW
         raw.inflows = DataFrame!(CSV.File(data_dir*"inflows.csv"))
         raw.storage_level = DataFrame!(CSV.File(data_dir*"storage_level.csv"))
 
+        raw.lines = DataFrame!(CSV.File(data_dir*"lines.csv"))
         raw.grid = DataFrame!(CSV.File(data_dir*"grid.csv"))
+        raw.redispatch_grid = DataFrame!(CSV.File(data_dir*"redispatch_grid.csv"))
+        raw.contingency_groups = JSON.parsefile(data_dir*"contingency_groups.json"; dicttype=Dict)
         raw.slack_zones = DataFrame!(CSV.File(data_dir*"slack_zones.csv"))
         raw.model_horizon = DataFrame(index=collect(1:size(unique(raw.demand_el[:, :timestep]), 1)),
                                       timesteps=unique(raw.demand_el[:, :timestep]))
         return raw
     end
-end
-
-function load_redispatch_grid!(pomato::POMATO)
-    grid = Vector{Grid}()
-    grid_data = DataFrame!(CSV.File(pomato.data.folders["data_dir"]*"redispatch_grid.csv"))
-    # grid_data = CSV.read(pomato.data.folders["data_dir"]*"redispatch_nodal.csv")
-    for cbco in 1:nrow(grid_data)
-        index = cbco
-        name = grid_data[cbco, :index]
-        ptdf = [grid_data[cbco, Symbol(node.name)] for node in pomato.data.nodes]
-        ram = grid_data[cbco, :ram]*1.
-        newcbco = Grid(index, name, ptdf, ram)
-        newcbco.zone_i = coalesce(grid_data[cbco, :zone_i], nothing)
-        newcbco.zone_j = coalesce(grid_data[cbco, :zone_j], nothing)
-        push!(grid, newcbco)
-    end
-    pomato.data.grid = grid
-    return grid
 end
 
 function save_result(result::Result, folder::String)

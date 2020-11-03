@@ -1,10 +1,10 @@
 # -------------------------------------------------------------------------------------------------
 # POMATO - Power Market Tool (C) 2020
-# Current Version: 0.2
-# Created by Robert Mieth and Richard Weinhold
+# Current Version: 0.2.5
+# Created by Richard Weinhold and Robert Mieth
 # Licensed under LGPL v3
 #
-# Language: Julia, v1.3
+# Language: Julia, v1.3, 1.4, 1.5 (throwing deprecation warnings)
 # ----------------------------------
 #
 # This file:

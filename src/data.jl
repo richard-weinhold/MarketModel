@@ -11,27 +11,57 @@
 # Julia mutable struct definitions for efficient data handling
 # -------------------------------------------------------------------------------------------------
 
-mutable struct Grid
+
+
+mutable struct Line
     # Attributes
     index::Int
     name::String
-    ptdf::Vector{Float64}
-    ram::Float64
+    b::Float64
+    capacity::Float64
+    zone_i::Int
+    zone_j::Int
+    incidence::Vector{Float64}
+    function Line(index::Int,
+                  name::String,
+                  b::Float64,
+                  capacity::Float64,
+                  zone_i::Int,
+                  zone_j::Int,
+                  incidence::Vector{Int})
+        l = new()
+        l.index = index
+        l.name = name
+        l.b = b
+        l.capacity = capacity
+        l.zone_i = zone_i
+        l.zone_j = zone_j
+        l.incidence = incidence
+        return l
+    end
+end
+
+mutable struct Contingency
+    # Attributes
+    name::String
+    lines::Vector{Int}
+    outages::Vector{Int}
+    ptdf::Array{Float64}
+    ram::Vector{Float64}
     # Optional Attributes
     timestep::String
-    reference_flow::Dict
-    zone_i::Union{String, Nothing}
-    zone_j::Union{String, Nothing}
-    function Grid(index::Int,
-                  name::String,
-                  ptdf::Vector{Float64},
-                  ram::Float64)
-        z = new()
-        z.index = index
-        z.name = name
-        z.ptdf = ptdf
-        z.ram = ram
-        return z
+    function Contingency(name::String,
+                         lines::Vector{Int},
+                         outages::Vector{Int},
+                         ptdf::Array{Float64, 2},
+                         ram::Vector{Float64})
+        c = new()
+        c.name = name
+        c.lines = lines
+        c.outages = outages
+        c.ptdf = ptdf
+        c.ram = ram
+        return c
     end
 end
 
@@ -161,24 +191,23 @@ mutable struct Renewables
             res.mc_el = mc_el
             res.mc_heat = mc_heat
             res.name = name
-            res.sigma_factor =  0.3
+            res.node = node
+            res.plant_type = plant_type
 
+            res.sigma_factor =  0.3
+            
             res.mu_rt = availability_rt * g_max
-            res.mu = res.mu_rt
+            res.sigma_rt = res.mu_rt * res.sigma_factor
 
             res.mu_heat_rt = availability_rt * h_max
-            res.mu_heat = res.mu_heat_rt
-
-            res.sigma_rt = (availability_rt * res.sigma_factor)*g_max
+            res.sigma_heat_rt = res.mu_heat_rt * res.sigma_factor
+            
+            res.mu = res.mu_rt
             res.sigma = res.sigma_rt
-
-            res.sigma_heat_rt = (availability_rt * res.sigma_factor)*h_max
+            res.mu_heat = res.mu_heat_rt
             res.sigma_heat = res.sigma_heat_rt
 
             res.real_time = true
-
-            res.node = node
-            res.plant_type = plant_type
             return res
         end
     end
@@ -265,14 +294,17 @@ mutable struct Data
     heatareas::Vector{Heatarea}
     plants::Vector{Plant}
     renewables::Vector{Renewables}
-    grid::Vector{Grid}
+    lines::Vector{Line}
+    contingencies::Vector{Contingency}
+    redispatch_contingencies::Vector{Contingency}
     dc_lines::Vector{DC_Line}
     t::Vector{Timestep}
     folders::Dict{String, String}
 
     function Data(nodes::Vector{Node}, zones::Vector{Zone},
                   heatareas::Vector{Heatarea}, plants::Vector{Plant},
-                  renewables::Vector{Renewables}, grid::Vector{Grid},
+                  renewables::Vector{Renewables}, lines::Vector{Line},
+                  contingencies::Vector{Contingency}, redispatch_contingencies::Vector{Contingency},
                   dc_lines::Vector{DC_Line}, t::Vector{Timestep})
           d = new()
           d.nodes = nodes
@@ -280,7 +312,9 @@ mutable struct Data
           d.heatareas = heatareas
           d.plants = plants
           d.renewables = renewables
-          d.grid = grid
+          d.lines = lines
+          d.contingencies = contingencies
+          d.redispatch_contingencies = redispatch_contingencies
           d.dc_lines = dc_lines
           d.t = t
           return d

@@ -32,14 +32,14 @@ mutable struct POMATO
     options::Dict
 	result::Result
 
-    ### Maps and Sets
+    ### Mappings and Sets
     n::NamedTuple{(:t, :zones, :nodes, :heatareas,
-                   :plants, :res, :dc, :cb,
+                   :plants, :res, :dc, :lines, :contingencies,
                    :he, :chp, :es, :hs, :ph, :alpha, :cc_res)
-                    ,Tuple{Vararg{Int, 15}}}
+                    ,Tuple{Vararg{Int, 16}}}
 
     ## Plant Mappings
-    map::NamedTuple{(:slack, # slacks to 1:n_nodes
+    mapping::NamedTuple{(:slack, # slacks to 1:n_nodes
                      :he, # 1:N.he index to 1:N.plants
                      :chp, # 1:N.chp to 1:N.he
                      :es, # 1:N.es to 1:N.plants
@@ -63,14 +63,14 @@ function POMATO(model::Model,
 	m.options = options
 
 	## Plant Mappings
-	# map heat index to G index
-	map_he = findall(plant -> plant.h_max > 0, data.plants)
-	m.map = (slack = findall(node -> node.slack, data.nodes),
-			 he = map_he,
-			 chp = findall(plant -> ((plant.h_max > 0)&(plant.g_max > 0)), data.plants[map_he]),
+	# mapping heat index to G index
+	mapping_he = findall(plant -> plant.h_max > 0, data.plants)
+	m.mapping = (slack = findall(node -> node.slack, data.nodes),
+			 he = mapping_he,
+			 chp = findall(plant -> ((plant.h_max > 0)&(plant.g_max > 0)), data.plants[mapping_he]),
 			 es = findall(plant -> plant.plant_type in options["plant_types"]["es"], data.plants),
-			 hs = findall(plant -> plant.plant_type in options["plant_types"]["hs"], data.plants[map_he]),
-			 ph = findall(plant -> plant.plant_type in options["plant_types"]["ph"], data.plants[map_he]),
+			 hs = findall(plant -> plant.plant_type in options["plant_types"]["hs"], data.plants[mapping_he]),
+			 ph = findall(plant -> plant.plant_type in options["plant_types"]["ph"], data.plants[mapping_he]),
 			 alpha = findall(plant -> plant.g_max > options["chance_constrained"]["alpha_plants_mw"], data.plants),
 			 cc_res = findall(res_plants -> res_plants.g_max > options["chance_constrained"]["cc_res_mw"], data.renewables))
 
@@ -81,19 +81,21 @@ function POMATO(model::Model,
 		   plants = size(data.plants, 1),
 		   res = size(data.renewables, 1),
 		   dc = size(data.dc_lines, 1),
-		   cb = size(data.grid, 1),
-		   he = size(m.map.he, 1),
-		   chp = size(m.map.chp, 1),
-		   es = size(m.map.es, 1),
-		   hs = size(m.map.hs, 1),
-		   ph = size(m.map.ph, 1),
-		   alpha = size(m.map.alpha, 1),
-		   cc_res = size(m.map.cc_res, 1))
+		   lines = size(data.lines, 1),
+		   contingencies = size(data.contingencies, 1),
+		   he = size(m.mapping.he, 1),
+		   chp = size(m.mapping.chp, 1),
+		   es = size(m.mapping.es, 1),
+		   hs = size(m.mapping.hs, 1),
+		   ph = size(m.mapping.ph, 1),
+		   alpha = size(m.mapping.alpha, 1),
+		   cc_res = size(m.mapping.cc_res, 1))
 	return m
 end
 
 function check_infeasibility(model::Model)
-	if string(optimizer) == "Gurobi"
+	global optimizer
+	if string(optimizer) == "Gurobi.Optimizer"
 		global optimizer_package
 		optimizer_package.compute_conflict(model.moi_backend.optimizer.model)
 		for constraint_types in list_of_constraint_types(model)

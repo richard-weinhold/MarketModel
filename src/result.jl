@@ -1,18 +1,18 @@
 """Result related functions."""
 
 function get_result_info(pomato::POMATO)
-	n, map = pomato.n, pomato.map
+	n, mapping = pomato.n, pomato.mapping
 	var_info(x) = NamedTuple{(:sets, :indices, :columns, :dual), Tuple{Vector{Symbol}, Vector{AbstractArray{Int, 1}}, Vector{Symbol}, Bool}}(x)
 	return Dict(:G => var_info(([:t, :plants], [1:n.t, 1:n.plants], [:t, :p, :G], false)),
-			    :H => var_info(([:t, :plants], [1:n.t, map.he], [:t, :p, :H], false)),
+			    :H => var_info(([:t, :plants], [1:n.t, mapping.he], [:t, :p, :H], false)),
 			    :INJ => var_info(([:t, :nodes], [1:n.t, 1:n.nodes], [:t, :n, :INJ], false)),
 			    :F_DC => var_info(([:t, :dc_lines], [1:n.t, 1:n.dc], [:t, :dc, :F_DC], false)),
 			    :EX => var_info(([:t, :zones, :zones], [1:n.t, 1:n.zones, 1:n.zones], [:t, :z, :zz, :EX], false)),
-			    :D_es => var_info(([:t, :plants], [1:n.t, map.es], [:t, :p, :D_es], false)),
-			    :L_es => var_info(([:t, :plants], [1:n.t, map.es], [:t, :p, :L_es], false)),
-			    :D_hs => var_info(([:t, :plants], [1:n.t, map.he[map.hs]], [:t, :p, :D_hs], false)),
-			    :L_hs => var_info(([:t, :plants], [1:n.t, map.he[map.hs]], [:t, :p, :L_hs], false)),
-			    :D_ph => var_info(([:t, :plants], [1:n.t, map.he[map.ph]], [:t, :p, :D_ph], false)),
+			    :D_es => var_info(([:t, :plants], [1:n.t, mapping.es], [:t, :p, :D_es], false)),
+			    :L_es => var_info(([:t, :plants], [1:n.t, mapping.es], [:t, :p, :L_es], false)),
+			    :D_hs => var_info(([:t, :plants], [1:n.t, mapping.he[mapping.hs]], [:t, :p, :D_hs], false)),
+			    :L_hs => var_info(([:t, :plants], [1:n.t, mapping.he[mapping.hs]], [:t, :p, :L_hs], false)),
+			    :D_ph => var_info(([:t, :plants], [1:n.t, mapping.he[mapping.ph]], [:t, :p, :D_ph], false)),
 			    :INFEAS_H_POS => var_info(([:t, :heatareas], [1:n.t, 1:n.heatareas], [:t, :ha, :INFEAS_H_POS], false)),
 			    :INFEAS_H_NEG => var_info(([:t, :heatareas], [1:n.t, 1:n.heatareas], [:t, :ha, :INFEAS_H_NEG], false)),
 			    :INFEAS_EL_N_POS => var_info(([:t, :nodes], [1:n.t, 1:n.nodes], [:t, :n, :INFEAS_EL_N_POS], false)),
@@ -20,7 +20,7 @@ function get_result_info(pomato::POMATO)
 			    :EB_nodal => var_info(([:t, :nodes], [1:n.t, 1:n.nodes], [:t, :n, :EB_nodal], true)),
 			    :EB_zonal => var_info(([:t, :zones], [1:n.t, 1:n.zones], [:t, :z, :EB_zonal], true)),
 			    :CURT => var_info(([:t, :renewables], [1:n.t, 1:n.res], [:t, :n, :CURT], false)),
-			    :Alpha => var_info(([:t, :plants], [1:n.t, map.alpha], [:t, :n, :Alpha], false)),
+			    :Alpha => var_info(([:t, :plants], [1:n.t, mapping.alpha], [:t, :n, :Alpha], false)),
 			    :G_RES => var_info(([:t, :renewables], [1:n.t, 1:n.res], [:t, :n, :G_RES], false)),
 			    :H_RES => var_info(([:t, :renewables], [1:n.t, 1:n.res], [:t, :n, :H_RES], false)),
 				)

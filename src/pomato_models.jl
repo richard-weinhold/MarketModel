@@ -46,10 +46,17 @@ function market_model(data::Data, options::Dict{String, Any})
 		add_flowbased_constraints!(pomato)
 	end
 
-	if in(pomato.options["type"] , ["cbco_nodal", "nodal"]) & !options["chance_constrained"]["include"]
-		@info("Adding Load Flow Constraints...")
-		add_dclf_constraints!(pomato)
+	if in(pomato.options["type"] , ["nodal", "cbco_nodal"]) & !options["chance_constrained"]["include"]
+		if length(data.contingencies) > 1
+			@info("Adding power flow constraints using the PTDF formulation.")
+			add_dclf_ptdf_constraints!(pomato)
+		else
+			@info("Adding power flow constraints using the angle formulation.")
+			add_dclf_angle_constraints!(pomato)
+			# add_dclf_ptdf_constraints!(pomato)
+		end
 	end
+
 
 	if options["chance_constrained"]["include"]
 		@info("Adding Chance Constraints...")
@@ -69,13 +76,13 @@ function market_model(data::Data, options::Dict{String, Any})
 	@info("Solving...")
 	t_start = time_ns()
 	@time JuMP.optimize!(pomato.model)
+	if JuMP.termination_status(pomato.model) != MOI.OPTIMAL
+		check_infeasibility(pomato.model)
+	end
 	@info("Objective: $(JuMP.objective_value(pomato.model))")
 	@info("Objective: $(JuMP.termination_status(pomato.model))")
 	t_elapsed = time_ns() - t_start
 	@info("Solvetime: $(round(t_elapsed*1e-9, digits=2)) seconds")
-	if JuMP.termination_status(pomato.model) != MOI.OPTIMAL
-		check_infeasibility(pomato.model)
-	end
 	add_result!(pomato)
 	@info("Model Done!")
 	return pomato
@@ -91,9 +98,9 @@ function redispatch_model(market_result::Result, data::Data, options::Dict{Strin
 	redispatch_results["market_results"] = market_result
 
 	market_result_variables = Dict{String, Array{Float64, 2}}()
-	map_he = findall(plant -> plant.h_max > 0, data.plants)
+	mapping_he = findall(plant -> plant.h_max > 0, data.plants)
 	es = findall(plant -> plant.plant_type in options["plant_types"]["es"], data.plants)
-	ph = findall(plant -> plant.plant_type in options["plant_types"]["ph"], data.plants[map_he])
+	ph = findall(plant -> plant.plant_type in options["plant_types"]["ph"], data.plants[mapping_he])
 
 	market_result_variables["g_market"] = Array(unstack(market_result.G, :t, :p, :G)[:, [p.name for p in data.plants]])
 	market_result_variables["d_es_market"] = size(market_result.D_es, 1) > 0 ? Array(unstack(market_result.D_es, :t, :p, :D_es)[:, [p.name for p in data.plants[es]]]) : Array{Float64}(undef, length(data.t), 0)
@@ -101,8 +108,9 @@ function redispatch_model(market_result::Result, data::Data, options::Dict{Strin
 	market_result_variables["infeas_pos_market"] = Array(unstack(market_result.INFEAS_EL_N_POS, :t, :n, :INFEAS_EL_N_POS)[:, [n.name for n in data.nodes]])
 	market_result_variables["infeas_neg_market"] = Array(unstack(market_result.INFEAS_EL_N_NEG, :t, :n, :INFEAS_EL_N_NEG)[:, [n.name for n in data.nodes]])
 
+	data.contingencies = data.redispatch_contingencies
 	pomato = POMATO(Model(), data, options)
-	load_redispatch_grid!(pomato)
+	
 	data_copy = deepcopy(pomato.data)
 	market_result_variables_copy = deepcopy(market_result_variables)
 

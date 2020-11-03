@@ -10,7 +10,9 @@ function read_model_data(data_dir::String)
     plants = populate_plants(raw)
     res_plants = populate_res_plants(raw)
     dc_lines = populate_dclines(raw)
-    grid = populate_grid(raw)
+    
+    lines = populate_lines(raw, nodes)
+    contingencies, redispatch_contingencies = populate_network(raw, lines, nodes, zones)
 
     # task_zones = Threads.@spawn populate_zones(raw)
     # task_nodes = Threads.@spawn populate_nodes(raw)
@@ -29,7 +31,8 @@ function read_model_data(data_dir::String)
     # grid = fetch(task_grid)
 
     timesteps = populate_timesteps(raw)
-    data = Data(nodes, zones, heatareas, plants, res_plants, grid, dc_lines, timesteps)
+    data = Data(nodes, zones, heatareas, plants, res_plants, lines, 
+                contingencies, redispatch_contingencies, dc_lines, timesteps)
     data.folders = Dict("data_dir" => data_dir)
     options = raw.options
     raw = nothing
@@ -80,6 +83,9 @@ end
 
 function populate_nodes(raw::RAW)
     nodes = Vector{Node}()
+    demand = unstack(raw.demand_el, :timestep, :node, :demand_el)
+    net_export = unstack(raw.net_export, :timestep, :node, :net_export)
+
     for n in 1:nrow(raw.nodes)
         index = n
         name = raw.nodes[n, :index]
@@ -88,16 +94,13 @@ function populate_nodes(raw::RAW)
         zone_idx = raw.zones[raw.zones[:, :index] .== zone_name, :int_idx][1]
         plants = raw.plants[raw.plants[:, :node] .== name, :int_idx]
         res_plants = raw.res_plants[raw.res_plants[:, :node] .== name, :int_idx]
-        demand = combine(groupby(filter(col -> col[:node] == name, raw.demand_el), :timestep, sort=true), :demand_el => sum)
-        newn = Node(index, name, zone_idx, demand[:, :demand_el_sum], slack, plants, res_plants)
+        newn = Node(index, name, zone_idx, demand[:, name], slack, plants, res_plants)
         if slack
             # newn.slack_zone = slack_zones[index]
             slack_zone = raw.slack_zones[:, :index][raw.slack_zones[:, Symbol(name)] .== 1]
             newn.slack_zone = filter(col -> col[:index] in slack_zone, raw.nodes)[:, :int_idx]
         end
-
-        net_export = combine(groupby(filter(col -> col[:node] == name, raw.net_export), :timestep, sort=true), :net_export => sum)
-        newn.net_export = (size(net_export, 1) > 0 ? net_export[:, :net_export_sum] :
+        newn.net_export = (name in names(net_export) ? net_export[:, name] :
                            zeros(length(raw.model_horizon[:, :timesteps])))
 
         if "demand_el_da" in string.(names(raw.demand_el))
@@ -154,6 +157,8 @@ end
 
 function populate_res_plants(raw::RAW)
     res_plants = Vector{Renewables}()
+    availability = unstack(raw.availability, :timestep, :plant, :availability)
+
     for res in 1:nrow(raw.res_plants)
         index = res
         name = string(raw.res_plants[res, :index])
@@ -164,18 +169,17 @@ function populate_res_plants(raw::RAW)
         mc_el = raw.res_plants[res, :mc_el]*1.
         mc_heat = raw.res_plants[res, :mc_heat]*1.
         plant_type = raw.res_plants[res, :plant_type]
-        availability = combine(groupby(filter(col -> col[:plant] == name, raw.availability),
-                                       :timestep, sort=true), :availability => sum)
         newres = Renewables(index, name, g_max, h_max, mc_el, mc_heat,
-                            availability[:, :availability_sum],
+                            availability[:, name],
                             node_idx, plant_type)
+
         if "availability_da" in string.(names(raw.availability))
-            availability_da = combine(groupby(filter(col -> col[:plant] == name, raw.availability),
-                                      :timestep, sort=true), :availability_da => sum)
-            newres.mu_da = availability_da[:, :availability_da_sum] .* g_max
-            newres.mu_heat_da = availability_da[:, :availability_da_sum] .* h_max
-            newres.sigma_da = (availability_da[:, :availability_da_sum] * newres.sigma_factor)*g_max
-            newres.sigma_heat_da = (availability_da[:, :availability_da_sum] * newres.sigma_factor)*h_max
+            availability_da = filter(col -> col[:plant] == name, raw.availability)[:, :availability_da]
+            
+            newres.mu_da = availability_da * g_max
+            newres.sigma_da = newres.mu_da * newres.sigma_factor 
+            newres.mu_heat_da = availability_da * h_max
+            newres.sigma_heat_da = newres.mu_heat_da * newres.sigma_factor
         end
         push!(res_plants, newres)
     end
@@ -198,28 +202,73 @@ function populate_dclines(raw::RAW)
     return dc_lines
 end
 
-function populate_grid(raw::RAW)
-    grid = Vector{Grid}()
-    for cbco in 1:nrow(raw.grid)
-        index = cbco
-        name = raw.grid[cbco, :index]
-        if in(raw.options["type"], ["cbco_zonal", "zonal"])
-            ptdf = [x for x in raw.grid[cbco, Symbol.(collect(raw.zones[:,:index]))]]
-        else
-            ptdf = [x for x in raw.grid[cbco, Symbol.(collect(raw.nodes[:,:index]))]]
-        end
-        ram = raw.grid[cbco, :ram]*1.
-        newcbco = Grid(index, name, ptdf, ram)
-        if "zone" in string.(names(raw.grid))
-            newcbco.zone_i = coalesce(raw.grid[cbco, :zone_i], nothing)
-            newcbco.zone_j = coalesce(raw.grid[cbco, :zone_j], nothing)
-        end
-        if "timestep" in string.(names(raw.grid))
-            newcbco.timestep = raw.grid[cbco, :timestep]
-        end
-        push!(grid, newcbco)
+function populate_lines(raw::RAW, nodes::Vector{Node})
+    lines = Vector{Line}()
+    for line in 1:nrow(raw.lines)
+        index = line
+        name = raw.lines[line, :index]
+        capacity = raw.lines[line, :maxflow]*1.
+        b = raw.lines[line, :b]*1.
+        incidence = zeros(Int, length(nodes))
+        incidence[[findfirst(n -> n.name == raw.lines[line, :node_i], nodes), 
+                findfirst(n -> n.name == raw.lines[line, :node_j], nodes)]] = [1,-1]
+
+        zone_i = nodes[findfirst(n -> n.name == raw.lines[line, :node_i], nodes)].zone
+        zone_j = nodes[findfirst(n -> n.name == raw.lines[line, :node_j], nodes)].zone
+        newline = Line(index, name, b, capacity, zone_i, zone_j, incidence)
+        push!(lines, newline)
     end
-    return grid
+    return lines
+end
+
+function populate_contingencies(grid_data::DataFrame, raw::RAW, lines::Vector{Line}, nodes::Vector{Node})
+    contingencies = Vector{Contingency}()
+    for contingency in unique(grid_data[:, :co])
+        name = contingency
+        cb = findall(l -> l.name in grid_data[grid_data[:, :co] .== contingency, :cb], lines)
+        co = (contingency in keys(raw.contingency_groups) ? findall(l -> l.name in raw.contingency_groups[contingency], lines) : Vector{Int}())
+        ptdf = Array(grid_data[grid_data[:, :co] .== contingency, [Symbol(n.name) for n in nodes]])
+        ram = Vector(grid_data[grid_data[:, :co] .== contingency, :ram]).*1.
+        newcontingency = Contingency(name, cb, co, ptdf, ram)
+        push!(contingencies, newcontingency)
+    end
+    return contingencies
+end
+
+function populate_contingencies(grid_data::DataFrame, raw::RAW, lines::Vector{Line}, zones::Vector{Zone})
+    contingencies = Vector{Contingency}()
+    for contingency in unique(grid_data[:, :co])
+        name = contingency
+        cb = findall(l -> l.name in grid_data[grid_data[:, :co] .== contingency, :cb], lines)
+        co = (contingency in keys(raw.contingency_groups) ? findall(l -> l.name in raw.contingency_groups[contingency], lines) : Vector{Int}())
+        ptdf = Array(grid_data[grid_data[:, :co] .== contingency, [Symbol(z.name) for z in zones]])
+        ram = Vector(grid_data[grid_data[:, :co] .== contingency, :ram]).*1.
+        newcontingency = Contingency(name, cb, co, ptdf, ram)
+        push!(contingencies, newcontingency)
+    end
+    return contingencies
+end
+
+function populate_network(raw::RAW, lines::Vector{Line}, nodes::Vector{Node}, zones::Vector{Zone})
+
+    if raw.options["type"] in ["zonal", "cbco_zonal"]
+        if "timestep" in names(raw.grid)
+            tmp_contingencies = []
+            for timestep in raw.model_horizon[:, :timesteps]
+                tmp = populate_contingencies(raw.grid[raw.grid[:, :timestep] .== timestep, :],
+                                             raw, lines, zones)
+                map(c -> c.timestep = timestep, tmp)
+                push!(tmp_contingencies, tmp)
+            end
+            contingencies = vcat(tmp_contingencies...)
+        else
+            contingencies = populate_contingencies(raw.grid, raw, lines, zones)
+        end
+    else # raw.options["type"] in ["nodal", "cbco_nodal"]
+        contingencies = populate_contingencies(raw.grid, raw, lines, nodes)
+    end
+    redispatch_contingencies = populate_contingencies(raw.redispatch_grid, raw, lines, nodes)
+    return contingencies, redispatch_contingencies
 end
 
 function set_model_horizon!(data::Data, split::Int)

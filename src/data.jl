@@ -44,8 +44,10 @@ end
 mutable struct Contingency
     # Attributes
     name::String
+    # Angle Formulation
     lines::Vector{Int}
     outages::Vector{Int}
+    # PTDF Formulation
     ptdf::Array{Float64}
     ram::Vector{Float64}
     # Optional Attributes

@@ -157,8 +157,9 @@ end
 
 function populate_res_plants(raw::RAW)
     res_plants = Vector{Renewables}()
-    availability = unstack(raw.availability, :timestep, :plant, :availability)
-
+    if size(raw.availability, 1) > 0
+        availability = unstack(raw.availability, :timestep, :plant, :availability)
+    end
     for res in 1:nrow(raw.res_plants)
         index = res
         name = string(raw.res_plants[res, :index])

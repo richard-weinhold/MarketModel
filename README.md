@@ -1,6 +1,6 @@
-[![PomatoLogo](https://github.com/richard-weinhold/pomato/blob/master/docs/pomato_logo_small.png "Pomato Soup")](#) MarketModel package for use in POMATO, a Power Market Tool For The Analysis Of Modern Electricity Markets
+[![PomatoLogo](https://github.com/richard-weinhold/pomato/blob/master/docs/_static/graphics/pomato_logo_small.png "Pomato Soup")](#) MarketModel package for use in POMATO, a Power Market Tool For The Analysis Of Modern Electricity Markets
 =====================================================================================================================================
-[![Build Status](https://travis-ci.org/richard-weinhold/MarketModel.svg?branch=master)](https://travis-ci.org/richard-weinhold/MarketModel)
+[![Build Status](https://travis-ci.com/richard-weinhold/MarketModel.svg?branch=master)](https://travis-ci.com/richard-weinhold/MarketModel)
 
 Overview
 --------
@@ -12,7 +12,7 @@ This repository holds these features as a individual julia package for easier ma
 Installation
 ------------
 
-The MarketModel can be cloned and added to you julia projects or just used from the repository. The model requires Julia 1.3 and works with the open Clp solver. As said before it is meant tobe using in conjunction with the python [(POAMTO)](https://github.com/richard-weinhold/pomato) model, which embeds its features and installs it automatically.
+The MarketModel can be cloned and added to you julia projects or just used from the repository. The model requires Julia 1.3 and works with the open Clp solver. As said before it is meant to be using in conjunction with the python [(POAMTO)](https://github.com/richard-weinhold/pomato) model, which embeds its features and installs it automatically.
 
 Related Publications
 --------------------

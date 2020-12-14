@@ -17,8 +17,8 @@ jobs:
       uses: julia-actions/setup-julia@v1
       with:
         version: ${{ matrix.julia-version }}
-    - name: Build Package
-      uses: julia-actions/julia-buildpkg@latest
+    # - name: Build Package
+      # uses: julia-actions/julia-buildpkg@latest
     - name: Test Package
       uses: julia-actions/julia-runtest@latest
 

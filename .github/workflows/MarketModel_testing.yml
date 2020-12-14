@@ -20,7 +20,9 @@ jobs:
     # - name: Build Package
       # uses: julia-actions/julia-buildpkg@latest
     - name: Test Package
-      uses: julia-actions/julia-runtest@latest
+      run: |
+        julia --project=@. -e "using Pkg; Pkg.instantiate();"
+        julia --project=@. -e "using Pkg; Pkg.test(\"test\");"
 
     - name: Upload coverage to Codecov
       uses: julia-actions/julia-uploadcodecov@latest

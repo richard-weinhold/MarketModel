@@ -21,9 +21,5 @@ jobs:
       # uses: julia-actions/julia-buildpkg@latest
     - name: Test Package
       uses: julia-actions/julia-runtest@latest
-    # - name: Test Package
-    #   run: |
-    #     julia --project=@. -e "using Pkg; Pkg.instantiate();"
-    #     julia --project=@. -e "using Pkg; Pkg.test(\"MarketModel\");"
     - name: Upload coverage to Codecov
       uses: julia-actions/julia-uploadcodecov@latest

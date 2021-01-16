@@ -196,8 +196,8 @@ function populate_dclines(raw::RAW)
         node_j = raw.dc_lines[dc, :node_j]
         node_i_idx = raw.nodes[raw.nodes[:, :index] .== node_i, :int_idx][1]
         node_j_idx = raw.nodes[raw.nodes[:, :index] .== node_j, :int_idx][1]
-        maxflow = raw.dc_lines[dc, :maxflow]*1.
-        newdc = DC_Line(index, name, node_i_idx, node_j_idx, maxflow)
+        capacity = raw.dc_lines[dc, :capacity]*1.
+        newdc = DC_Line(index, name, node_i_idx, node_j_idx, capacity)
         push!(dc_lines, newdc)
     end
     return dc_lines
@@ -208,8 +208,9 @@ function populate_lines(raw::RAW, nodes::Vector{Node})
     for line in 1:nrow(raw.lines)
         index = line
         name = raw.lines[line, :index]
-        capacity = raw.lines[line, :maxflow]*1.
-        b = raw.lines[line, :b]*1.
+        capacity = 1. * raw.lines[line, :capacity]
+        x = 1. * raw.lines[line, :x_pu]
+        b = 1. / raw.lines[line, :x_pu]
         incidence = zeros(Int, length(nodes))
         incidence[[findfirst(n -> n.name == raw.lines[line, :node_i], nodes), 
                 findfirst(n -> n.name == raw.lines[line, :node_j], nodes)]] = [1,-1]
@@ -240,7 +241,8 @@ function populate_contingencies(grid_data::DataFrame, raw::RAW, lines::Vector{Li
     contingencies = Vector{Contingency}()
     for contingency in unique(grid_data[:, :co])
         name = contingency
-        cb = findall(l -> l.name in grid_data[grid_data[:, :co] .== contingency, :cb], lines)
+        tmp_co = grid_data[grid_data[:, :co] .== contingency, :cb]
+        cb = findall(l -> l.name in tmp_co, lines)
         co = (contingency in keys(raw.contingency_groups) ? findall(l -> l.name in raw.contingency_groups[contingency], lines) : Vector{Int}())
         ptdf = Array(grid_data[grid_data[:, :co] .== contingency, [Symbol(z.name) for z in zones]])
         ram = Vector(grid_data[grid_data[:, :co] .== contingency, :ram]).*1.

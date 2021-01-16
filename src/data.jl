@@ -262,18 +262,18 @@ mutable struct DC_Line
     name::Any
     node_i::Int
     node_j::Int
-    maxflow::Float64
+    capacity::Float64
     function DC_Line(index::Int,
                      name::Any,
                      node_i::Int,
                      node_j::Int,
-                     maxflow::Float64)
+                     capacity::Float64)
         l = new()
         l.index = index
         l.name = name
         l.node_i = node_i
         l.node_j = node_j
-        l.maxflow = maxflow
+        l.capacity = capacity
         return l
     end
 end

@@ -166,9 +166,9 @@ function add_electricity_generation_constraints!(pomato::POMATO)
 
 	# DC Lines Constraints
 	@constraint(model, [t=1:n.t],
-	    F_DC[t, :] .<= [data.dc_lines[dc].maxflow for dc in 1:n.dc])
+	    F_DC[t, :] .<= [data.dc_lines[dc].capacity for dc in 1:n.dc])
 	@constraint(model, [t=1:n.t],
-	    -F_DC[t, :] .<= [data.dc_lines[dc].maxflow for dc in 1:n.dc])
+	    -F_DC[t, :] .<= [data.dc_lines[dc].capacity for dc in 1:n.dc])
 
 	# Balance Net Injections within Slacks Zones
 	@constraint(model, [t=1:n.t, slack=mapping.slack],
@@ -608,9 +608,9 @@ function redispatch_model!(pomato::POMATO, market_model_results::Dict, redispatc
 	
 		# DC Lines Constraints
 	@constraint(model, [t=1:n.t],
-		F_DC[t, :] .<= [data.dc_lines[dc].maxflow for dc in 1:n.dc])
+		F_DC[t, :] .<= [data.dc_lines[dc].capacity for dc in 1:n.dc])
 	@constraint(model, [t=1:n.t],
-		-F_DC[t, :] .<= [data.dc_lines[dc].maxflow for dc in 1:n.dc])
+		-F_DC[t, :] .<= [data.dc_lines[dc].capacity for dc in 1:n.dc])
 
 	# Balance Net Injections within Slacks Zones
 	@constraint(model, [t=1:n.t, slack=mapping.slack],

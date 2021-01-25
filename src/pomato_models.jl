@@ -103,11 +103,11 @@ function redispatch_model(market_result::Result, data::Data, options::Dict{Strin
 	es = findall(plant -> plant.plant_type in options["plant_types"]["es"], data.plants)
 	ph = findall(plant -> plant.plant_type in options["plant_types"]["ph"], data.plants[mapping_he])
 
-	market_result_variables["g_market"] = Array(unstack(market_result.G, :t, :p, :G)[:, [p.name for p in data.plants]])
-	market_result_variables["d_es_market"] = size(market_result.D_es, 1) > 0 ? Array(unstack(market_result.D_es, :t, :p, :D_es)[:, [p.name for p in data.plants[es]]]) : Array{Float64}(undef, length(data.t), 0)
-	market_result_variables["d_ph_market"] = size(market_result.D_ph, 1) > 0 ? Array(unstack(market_result.D_ph, :t, :p, :D_ph)[:, [p.name for p in data.plants[ph]]]) : Array{Float64}(undef, length(data.t), 0)
-	market_result_variables["infeas_pos_market"] = Array(unstack(market_result.INFEAS_EL_N_POS, :t, :n, :INFEAS_EL_N_POS)[:, [n.name for n in data.nodes]])
-	market_result_variables["infeas_neg_market"] = Array(unstack(market_result.INFEAS_EL_N_NEG, :t, :n, :INFEAS_EL_N_NEG)[:, [n.name for n in data.nodes]])
+	market_result_variables["g_market"] = Array(sort(unstack(market_result.G, :t, :p, :G))[:, [p.name for p in data.plants]])
+	market_result_variables["d_es_market"] = size(market_result.D_es, 1) > 0 ? Array(sort(unstack(market_result.D_es, :t, :p, :D_es))[:, [p.name for p in data.plants[es]]]) : Array{Float64}(undef, length(data.t), 0)
+	market_result_variables["d_ph_market"] = size(market_result.D_ph, 1) > 0 ? Array(sort(unstack(market_result.D_ph, :t, :p, :D_ph))[:, [p.name for p in data.plants[ph]]]) : Array{Float64}(undef, length(data.t), 0)
+	market_result_variables["infeas_pos_market"] = Array(sort(unstack(market_result.INFEAS_EL_N_POS, :t, :n, :INFEAS_EL_N_POS))[:, [n.name for n in data.nodes]])
+	market_result_variables["infeas_neg_market"] = Array(sort(unstack(market_result.INFEAS_EL_N_NEG, :t, :n, :INFEAS_EL_N_NEG))[:, [n.name for n in data.nodes]])
 
 	data.contingencies = data.redispatch_contingencies
 	pomato = POMATO(Model(), data, options)
@@ -120,7 +120,6 @@ function redispatch_model(market_result::Result, data::Data, options::Dict{Strin
 	else
 		 redispatch_zones = [convert(Vector{String}, vcat(options["redispatch"]["zones"]))]
 	end
-
 	for zones in redispatch_zones
 		tmp_results = Dict{String, Result}()
 		# for timesteps in [t.index:t.index for t in data_copy.t]

@@ -59,7 +59,7 @@ function run_market_model(data::Data, options::Dict{String, Any}, input_optimize
 	if options["timeseries"]["split"]
 		data_full = deepcopy(data)
 		model_horizon_segments = split_timeseries_segments(data_full, options["timeseries"]["market_horizon"])
-		for (i,timesteps) in enumerate(model_horizon_segments)
+		for (i, timesteps) in enumerate(model_horizon_segments)
 			data = deepcopy(data_full)
 			data.t = data.t[timesteps]
 			set_model_horizon!(data, i)

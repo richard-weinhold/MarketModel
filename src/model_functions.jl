@@ -20,8 +20,8 @@ function add_variables_expressions!(pomato::POMATO)
 	@variable(model, F_DC[1:n.t, 1:n.dc]) # Flow in DC Line dc
 
 	if options["infeasibility"]["electricity"]["include"]
-	    @variable(model, 0 <= INFEAS_EL_N_NEG[1:n.t, 1:n.nodes] <= 10*options["infeasibility"]["electricity"]["bound"])
-	    @variable(model, 0 <= INFEAS_EL_N_POS[1:n.t, 1:n.nodes] <= 10*options["infeasibility"]["electricity"]["bound"])
+	    @variable(model, 0 <= INFEAS_EL_N_NEG[1:n.t, 1:n.nodes] <= options["infeasibility"]["electricity"]["bound"])
+	    @variable(model, 0 <= INFEAS_EL_N_POS[1:n.t, 1:n.nodes] <= options["infeasibility"]["electricity"]["bound"])
 	else
 	    @variable(model, INFEAS_EL_N_NEG[1:n.t, 1:n.nodes] == 0)
 	    @variable(model, INFEAS_EL_N_POS[1:n.t, 1:n.nodes] == 0)

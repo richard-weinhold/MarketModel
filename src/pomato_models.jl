@@ -77,7 +77,8 @@ function market_model(data::Data, options::Dict{String, Any})
 	t_start = time_ns()
 	@time JuMP.optimize!(pomato.model)
 	if JuMP.termination_status(pomato.model) != MOI.OPTIMAL
-		check_infeasibility(pomato.model)
+		check_infeasibility(pomato)
+		throw("Model is Infeasible. See stored information from Gurobi constraint conflics.")
 	end
 	@info("Objective: $(JuMP.objective_value(pomato.model))")
 	@info("Objective: $(JuMP.termination_status(pomato.model))")

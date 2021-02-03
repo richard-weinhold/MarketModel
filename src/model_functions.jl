@@ -77,11 +77,11 @@ function add_variables_expressions!(pomato::POMATO)
 
 	@expression(model, RES_Node[t=1:n.t, node=1:n.nodes],
 		size(data.nodes[node].res_plants, 1) > 0
-	    ? GenericAffExpr{Float64, VariableRef}(sum(data.renewables[res].mu[t] for res in data.nodes[node].res_plants))
+	    ? GenericAffExpr{Float64, VariableRef}(sum(data.renewables[res].mu[t]*1. for res in data.nodes[node].res_plants))
 	    : GenericAffExpr{Float64, VariableRef}(0));
 
 	@expression(model, RES_Zone[t=1:n.t, z=1:n.zones],
-	    GenericAffExpr{Float64, VariableRef}(sum(RES_Node[t, node] for node in data.zones[z].nodes)));
+	    sum(RES_Node[t, node] for node in data.zones[z].nodes));
 
 	@expression(model, RES_Heatarea[t=1:n.t, ha=1:n.heatareas],
 		size(data.heatareas[ha].res_plants, 1) > 0
@@ -584,7 +584,7 @@ function redispatch_model!(pomato::POMATO, market_model_results::Dict, redispatc
 		: GenericAffExpr{Float64, VariableRef}(0));
 
 	@expression(model, RES_Zone[t=1:n.t, z=1:n.zones],
-		GenericAffExpr{Float64, VariableRef}(sum(RES_Node[t, node] for node in data.zones[z].nodes)));
+		sum(RES_Node[t, node] for node in data.zones[z].nodes));
 
 	@expression(model, COST_G, sum(G[t, p]*data.plants[p].mc_el for p in 1:n.plants, t in 1:n.t));
 	@expression(model, COST_H, GenericAffExpr{Float64, VariableRef}(0));

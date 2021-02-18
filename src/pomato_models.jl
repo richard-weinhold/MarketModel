@@ -44,6 +44,8 @@ function market_model(data::Data, options::Dict{String, Any})
 	if in(pomato.options["type"] , ["zonal", "cbco_zonal"])
 		@info("Adding FlowBased Constraints...")
 		add_flowbased_constraints!(pomato)
+		non_fb_region = findall(zone -> zone.name in options["grid"]["flowbased_region"], data.zones)
+		add_ntc_constraints!(pomato, non_fb_region)
 	end
 
 	if in(pomato.options["type"] , ["nodal", "cbco_nodal"]) & !options["chance_constrained"]["include"]

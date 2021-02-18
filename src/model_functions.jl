@@ -402,11 +402,22 @@ function add_ntc_constraints!(pomato::POMATO)
 	@constraint(model, [t=1:n.t, z=1:n.zones, zz=1:n.zones], EX[t, z, zz] <= data.zones[z].ntc[zz])
 end
 
+function add_ntc_constraints!(pomato::POMATO, zones::Vector{Int})
+
+	model, n, mapping, data = pomato.model, pomato.n, pomato.mapping, pomato.data
+	EX = model[:EX]
+	@info("Including NTC Constraints for: "*join([data.zones[z].name*", " for z in zones])[1:end-2])
+	for non_fb_zone in zones
+		@constraint(model, [t=1:n.t, zz=1:n.zones], EX[t, non_fb_zone, zz] <= data.zones[non_fb_zone].ntc[zz])
+		@constraint(model, [t=1:n.t, z=1:n.zones], EX[t, z, non_fb_zone] <= data.zones[z].ntc[non_fb_zone])
+	end
+end
+
 function add_net_position_constraints!(pomato::POMATO)
 	model, n, mapping, data = pomato.model, pomato.n, pomato.mapping, pomato.data
 	EX = model[:EX]
 	nex_zones = [z.index for z in data.zones if any(z.net_position .!== missing)]
-	@info("including NEX Constraints for: "*join([data.zones[z].name*", " for z in  nex_zones])[1:end-2])
+	@info("Including NEX Constraints for: "*join([data.zones[z].name*", " for z in nex_zones])[1:end-2])
 	# # Applies to nodal model for basecase calculation:
 	@constraint(model, [t=1:n.t, z=nex_zones], sum(EX[t, z, zz] - EX[t, zz, z] for zz in 1:n.zones)
 		<= data.zones[z].net_position[t] + 0.1*abs(data.zones[z].net_position[t]))

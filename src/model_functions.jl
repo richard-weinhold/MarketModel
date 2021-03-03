@@ -101,9 +101,9 @@ function add_variables_expressions!(pomato::POMATO)
 	end
 
 	@expression(model, COST_EX, sum(EX)*1e-1);
-	@expression(model, COST_INFEAS_EL, (sum(INFEAS_EL_N_POS)
+	@expression(model, COST_INFEASIBILITY_EL, (sum(INFEAS_EL_N_POS)
 		+ sum(INFEAS_EL_N_NEG))*options["infeasibility"]["electricity"]["cost"]);
-	@expression(model, COST_INFEAS_H, (sum(INFEAS_H_POS)
+	@expression(model, COST_INFEASIBILITY_H, (sum(INFEAS_H_POS)
 		+ sum(INFEAS_H_NEG))*options["infeasibility"]["heat"]["cost"]);
 	@expression(model, COST_CURT, GenericAffExpr{Float64, VariableRef}(0));
 	@expression(model, COST_REDISPATCH, GenericAffExpr{Float64, VariableRef}(0));
@@ -114,17 +114,12 @@ function add_objective!(pomato::POMATO)
 	model = pomato.model
 	# Objective Function based on Cost Expressions
 	@objective(model, Min, model[:COST_G] + model[:COST_H] + model[:COST_EX]
-						   + model[:COST_INFEAS_EL] + model[:COST_INFEAS_H]
+						   + model[:COST_INFEASIBILITY_EL] + model[:COST_INFEASIBILITY_H]
 						   + model[:COST_CURT]);
 end
 
 function add_result!(pomato::POMATO)
-	if JuMP.termination_status(pomato.model) == MOI.OPTIMAL
-		pomato.result = Result(pomato)
-	else
-		@warn("Not Solved to Optimality! Termination Status: ",
-			  JuMP.termination_status(pomato.model))
-	end
+	pomato.result = Result(pomato)
 end
 
 function add_electricity_storage_constraints!(pomato::POMATO)
@@ -266,20 +261,18 @@ function add_heat_generation_constraints!(pomato::POMATO)
 	    .+ INFEAS_H_POS[t, :] .- INFEAS_H_NEG[t, :])
 end
 
-function add_curtailment_constraints!(pomato::POMATO, zones::Vector{String})
+function add_curtailment_constraints!(pomato::POMATO, zones::Vector{String}, curt_market::Array{Float64, 2})
 	model, n, mapping, data = pomato.model, pomato.n, pomato.mapping, pomato.data
-
-	redispatch_zones_nodes = vcat([data.zones[z].nodes for z in findall(z -> z.name in zones, data.zones)]...)
-
-	res_in_zone = findall(r -> r.node in redispatch_zones_nodes, data.renewables)
-	@variable(model, CURT[1:n.t, res_in_zone] >= 0)
-
-	@constraint(model, MaxCurt[t=1:n.t, res=res_in_zone],
-		CURT[t, res] <= data.renewables[res].mu[t])
-
 	G_RES = model[:G_RES]
 	RES_Node = model[:RES_Node]
 	RES_Zone = model[:RES_Zone]
+	redispatch_zones_nodes = vcat([data.zones[z].nodes for z in findall(z -> z.name in zones, data.zones)]...)
+	res_in_zone = findall(r -> r.node in redispatch_zones_nodes, data.renewables)
+	@variable(model, CURT[1:n.t, res_in_zone] >= 0)
+	@constraint(model, MinCurt[t=1:n.t, res=res_in_zone],
+		CURT[t, res] >= curt_market[t, res])
+	@constraint(model, MaxCurt[t=1:n.t, res=res_in_zone],
+		CURT[t, res] <= G_RES[t, res])
 	for t in 1:n.t
 		for res in res_in_zone
 			add_to_expression!(G_RES[t, res],  -CURT[t, res])
@@ -287,10 +280,8 @@ function add_curtailment_constraints!(pomato::POMATO, zones::Vector{String})
 		 	add_to_expression!(RES_Zone[t, data.nodes[data.renewables[res].node].zone], -CURT[t, res])
 	 	end
 	 end
-
  	# @constraint(model, [t=1:n.t, res=res_in_zone], CURT[t, res] <= 0.2*data.renewables[res].mu[t])
 	COST_CURT = model[:COST_CURT]
-
 	add_to_expression!(COST_CURT, sum(CURT*pomato.options["curtailment"]["cost"]))
 end
 
@@ -526,7 +517,9 @@ function redispatch_model!(pomato::POMATO, market_model_results::Dict, redispatc
 	data = pomato.data
 	model = pomato.model
 	mapping = pomato.mapping
-	g_market, d_es_market, d_ph_market = market_model_results["g_market"], market_model_results["d_es_market"], market_model_results["d_ph_market"]
+	g_market = market_model_results["g_market"]
+	d_es_market = market_model_results["d_es_market"]
+	d_ph_market = market_model_results["d_ph_market"]
 	infeas_neg_market, infeas_pos_market = market_model_results["infeas_neg_market"], market_model_results["infeas_pos_market"]
 
 	redispatch_zones_nodes = vcat([data.zones[z].nodes for z in findall(z -> z.name in redispatch_zones, data.zones)]...)
@@ -606,9 +599,9 @@ function redispatch_model!(pomato::POMATO, market_model_results::Dict, redispatc
 
 	@expression(model, COST_REDISPATCH, (sum(G_redispatch_pos) + sum(G_redispatch_neg))*pomato.options["redispatch"]["cost"]);
 	@expression(model, COST_EX, sum(EX)*1e-1);
-	@expression(model, COST_INFEAS_EL, (sum(INFEAS_EL_N_POS) + sum(INFEAS_EL_N_NEG))*pomato.options["infeasibility"]["electricity"]["cost"]);
+	@expression(model, COST_INFEASIBILITY_EL, (sum(INFEAS_EL_N_POS) + sum(INFEAS_EL_N_NEG))*pomato.options["infeasibility"]["electricity"]["cost"]);
 	@expression(model, COST_CURT, GenericAffExpr{Float64, VariableRef}(0));
-	@expression(model, COST_INFEAS_H, GenericAffExpr{Float64, VariableRef}(0));
+	@expression(model, COST_INFEASIBILITY_H, GenericAffExpr{Float64, VariableRef}(0));
 
 	# G Upper Bound
 	@constraint(model, [t=1:n.t, p=redispatch_zones_plants],
@@ -634,5 +627,5 @@ function redispatch_model!(pomato::POMATO, market_model_results::Dict, redispatc
 
 	add_dclf_angle_constraints!(pomato, redispatch_line_subset)
 
-	@objective(model, Min, COST_G + COST_EX + COST_INFEAS_EL + COST_CURT + COST_REDISPATCH);
+	@objective(model, Min, COST_G + COST_EX + COST_INFEASIBILITY_EL + COST_CURT + COST_REDISPATCH);
 end

@@ -44,8 +44,10 @@ function market_model(data::Data, options::Dict{String, Any})
 	if in(pomato.options["type"] , ["zonal", "cbco_zonal"])
 		@info("Adding FlowBased Constraints...")
 		add_flowbased_constraints!(pomato)
-		non_fb_region = findall(zone -> zone.name in options["grid"]["flowbased_region"], data.zones)
-		add_ntc_constraints!(pomato, non_fb_region)
+		non_fb_region = findall(zone -> !(zone.name in options["grid"]["flowbased_region"]), data.zones)
+		if length(non_fb_region) > 0
+			add_ntc_constraints!(pomato, non_fb_region)
+		end
 	end
 
 	if in(pomato.options["type"] , ["nodal", "cbco_nodal"]) & !options["chance_constrained"]["include"]
@@ -78,9 +80,12 @@ function market_model(data::Data, options::Dict{String, Any})
 	@info("Solving...")
 	t_start = time_ns()
 	@time JuMP.optimize!(pomato.model)
-	if JuMP.termination_status(pomato.model) != MOI.OPTIMAL
+	@info("Termination Status: ", JuMP.termination_status(pomato.model))
+	if JuMP.termination_status(pomato.model) == MOI.INFEASIBLE
 		check_infeasibility(pomato)
 		throw("Model is Infeasible. See stored information from Gurobi constraint conflics.")
+	elseif JuMP.termination_status(pomato.model) != MOI.OPTIMAL
+		@info("Termination Status not optimal, check solution for feasibility.")
 	end
 	@info("Objective: $(JuMP.objective_value(pomato.model))")
 	@info("Objective: $(JuMP.termination_status(pomato.model))")
@@ -106,6 +111,7 @@ function redispatch_model(market_result::Result, data::Data, options::Dict{Strin
 	ph = findall(plant -> plant.plant_type in options["plant_types"]["ph"], data.plants[mapping_he])
 
 	market_result_variables["g_market"] = Array(sort(unstack(market_result.G, :t, :p, :G))[:, [p.name for p in data.plants]])
+	market_result_variables["curt_market"] = size(market_result.CURT, 1) > 0 ? Array(sort(unstack(market_result.CURT, :t, :p, :CURT))[:, [res.name for res in data.renewables]]) : zeros(length(data.t), length(data.renewables))
 	market_result_variables["d_es_market"] = size(market_result.D_es, 1) > 0 ? Array(sort(unstack(market_result.D_es, :t, :p, :D_es))[:, [p.name for p in data.plants[es]]]) : Array{Float64}(undef, length(data.t), 0)
 	market_result_variables["d_ph_market"] = size(market_result.D_ph, 1) > 0 ? Array(sort(unstack(market_result.D_ph, :t, :p, :D_ph))[:, [p.name for p in data.plants[ph]]]) : Array{Float64}(undef, length(data.t), 0)
 	market_result_variables["infeas_pos_market"] = Array(sort(unstack(market_result.INFEAS_EL_N_POS, :t, :n, :INFEAS_EL_N_POS))[:, [n.name for n in data.nodes]])
@@ -149,7 +155,7 @@ function solve_redispatch_model(data::Data, market_result_variables::Dict{String
 	MOI.set(pomato.model, MOI.Silent(), false)
 	add_optimizer!(pomato);
 	redispatch_model!(pomato, market_result_variables, redispatch_zones);
-	add_curtailment_constraints!(pomato, redispatch_zones);
+	add_curtailment_constraints!(pomato, redispatch_zones, market_result_variables["curt_market"]);
 	add_electricity_energy_balance!(pomato);
 
 	# add_objective!(pomato)

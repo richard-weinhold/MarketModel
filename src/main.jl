@@ -12,6 +12,11 @@ function set_logger()
 	end
 end
 
+function set_global_optimizer(input_optimizer)
+	global optimizer = input_optimizer.Optimizer
+	global optimizer_package = input_optimizer
+end
+
 function split_timeseries_segments(data::Data, segment_length::Int)
 	segments = []
 	splits = Int(floor(length(data.t)/segment_length))
@@ -53,8 +58,7 @@ end
 function run_market_model(data::Data, options::Dict{String, Any}, input_optimizer; 
 						  save::Bool=true)
 
-	global optimizer = input_optimizer.Optimizer
-	global optimizer_package = input_optimizer
+	set_global_optimizer(input_optimizer)	
 	pomato_results = Dict{String, Result}()
 	if options["timeseries"]["split"]
 		data_full = deepcopy(data)
@@ -75,15 +79,16 @@ function run_market_model(data::Data, options::Dict{String, Any}, input_optimize
 	return pomato_results
 end
 
-function run_market_model_redispatch(data::Data, options::Dict{String, Any}, input_optimizer)
+function run_market_model_redispatch(data::Data, options::Dict{String, Any}, input_optimizer; 
+									 save::Bool=true)
 
-	global optimizer = input_optimizer.Optimizer
-	global optimizer_package = input_optimizer
-
+	set_global_optimizer(input_optimizer)
 	market_result = concat_results(run_market_model(data, options, input_optimizer, save=false))
 	redispatch_results = redispatch_model(market_result, data, options)
-	for result in keys(redispatch_results)
-		save_result(redispatch_results[result], data.folders["result_dir"]*"_"*result)
+	if save
+		for result in keys(redispatch_results)
+			save_result(redispatch_results[result], data.folders["result_dir"]*"_"*result)
+		end
 	end
 	@info("Everything Done!")
 	return redispatch_results

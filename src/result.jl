@@ -13,16 +13,23 @@ function get_result_info(pomato::POMATO)
 			    :D_hs => var_info(([:t, :plants], [1:n.t, mapping.he[mapping.hs]], [:t, :p, :D_hs], false)),
 			    :L_hs => var_info(([:t, :plants], [1:n.t, mapping.he[mapping.hs]], [:t, :p, :L_hs], false)),
 			    :D_ph => var_info(([:t, :plants], [1:n.t, mapping.he[mapping.ph]], [:t, :p, :D_ph], false)),
-			    :INFEAS_H_POS => var_info(([:t, :heatareas], [1:n.t, 1:n.heatareas], [:t, :ha, :INFEAS_H_POS], false)),
-			    :INFEAS_H_NEG => var_info(([:t, :heatareas], [1:n.t, 1:n.heatareas], [:t, :ha, :INFEAS_H_NEG], false)),
-			    :INFEAS_EL_N_POS => var_info(([:t, :nodes], [1:n.t, 1:n.nodes], [:t, :n, :INFEAS_EL_N_POS], false)),
-			    :INFEAS_EL_N_NEG => var_info(([:t, :nodes], [1:n.t, 1:n.nodes], [:t, :n, :INFEAS_EL_N_NEG], false)),
+			    :INFEASIBILITY_H_POS => var_info(([:t, :heatareas], [1:n.t, 1:n.heatareas], [:t, :ha, :INFEASIBILITY_H_POS], false)),
+			    :INFEASIBILITY_H_NEG => var_info(([:t, :heatareas], [1:n.t, 1:n.heatareas], [:t, :ha, :INFEASIBILITY_H_NEG], false)),
+			    :INFEASIBILITY_EL_POS => var_info(([:t, :nodes], [1:n.t, 1:n.nodes], [:t, :n, :INFEASIBILITY_EL_POS], false)),
+			    :INFEASIBILITY_EL_NEG => var_info(([:t, :nodes], [1:n.t, 1:n.nodes], [:t, :n, :INFEASIBILITY_EL_NEG], false)),
 			    :EB_nodal => var_info(([:t, :nodes], [1:n.t, 1:n.nodes], [:t, :n, :EB_nodal], true)),
 			    :EB_zonal => var_info(([:t, :zones], [1:n.t, 1:n.zones], [:t, :z, :EB_zonal], true)),
 			    :CURT => var_info(([:t, :renewables], [1:n.t, 1:n.res], [:t, :p, :CURT], false)),
 			    :Alpha => var_info(([:t, :plants], [1:n.t, mapping.alpha], [:t, :p, :Alpha], false)),
 			    :G_RES => var_info(([:t, :renewables], [1:n.t, 1:n.res], [:t, :p, :G_RES], false)),
 			    :H_RES => var_info(([:t, :renewables], [1:n.t, 1:n.res], [:t, :p, :H_RES], false)),
+			    :COST_G => var_info(([:t], [1:n.t], [:t, :COST_G], false)),
+			    :COST_H => var_info(([:t], [1:n.t], [:t, :COST_H], false)),
+			    :COST_EX => var_info(([:t], [1:n.t], [:t, :COST_EX], false)),
+			    :COST_CURT => var_info(([:t], [1:n.t], [:t, :COST_CURT], false)),
+			    :COST_REDISPATCH => var_info(([:t], [1:n.t], [:t, :COST_REDISPATCH], false)),
+			    :COST_INFEASIBILITY_EL => var_info(([:t], [1:n.t], [:t, :COST_INFEASIBILITY_EL], false)),
+			    :COST_INFEASIBILITY_H => var_info(([:t], [1:n.t], [:t, :COST_INFEASIBILITY_H], false)),
 				)
 end
 
@@ -38,14 +45,10 @@ function Result(pomato::POMATO)
 	# Misc Results or Data
 	result.misc_results = Dict()
 	result.misc_results["Objective Value"] = JuMP.objective_value(pomato.model)
-	result.misc_results["COST_G"] = JuMP.value(pomato.model[:COST_G])
-	result.misc_results["COST_H"] = typeof(pomato.model[:COST_H]) == GenericAffExpr{Float64, VariableRef} ?  JuMP.value(pomato.model[:COST_H]) : 0
-	result.misc_results["COST_EX"] = JuMP.value(pomato.model[:COST_EX])
-	result.misc_results["COST_CURT"] = JuMP.value(pomato.model[:COST_CURT])
-	result.misc_results["COST_REDISPATCH"] = JuMP.value(pomato.model[:COST_REDISPATCH])
-	result.misc_results["COST_INFEASIBILITY_EL"] = JuMP.value(pomato.model[:COST_INFEASIBILITY_EL])
-	# result.misc_results["COST_INFEASIBILITY_H"] = JuMP.value(pomato.model[:COST_INFEASIBILITY_H])
-	result.misc_results["COST_INFEASIBILITY_H"] = typeof(pomato.model[:COST_INFEASIBILITY_H]) == GenericAffExpr{Float64, VariableRef} ?  JuMP.value(pomato.model[:COST_INFEASIBILITY_H]) : 0
+	for cost in ["COST_G", "COST_H", "COST_EX", "COST_CURT", "COST_REDISPATCH", 
+				 "COST_INFEASIBILITY_EL", "COST_INFEASIBILITY_H"]
+		result.misc_results[cost] = sum(JuMP.value.(pomato.model[Symbol(cost)]))
+	end
 	result.misc_results["Solve Status"] = JuMP.termination_status(pomato.model)
 	return result
 end
@@ -57,17 +60,11 @@ function concat_results(results::Dict{String, Result})
 			setfield!(r, field, vcat([getfield(results[k], field) for k in keys(results)]...))
 		end
 	end
-
 	r.misc_results = Dict()
 	r.misc_results["Objective Value"] = sum([results[k].misc_results["Objective Value"] for k in keys(results)])
-	r.misc_results["COST_G"] = sum([results[k].misc_results["COST_G"] for k in keys(results)])
-	r.misc_results["COST_H"] = sum([results[k].misc_results["COST_H"] for k in keys(results)])
-	r.misc_results["COST_EX"] = sum([results[k].misc_results["COST_EX"] for k in keys(results)])
-	r.misc_results["COST_CURT"] = sum([results[k].misc_results["COST_CURT"] for k in keys(results)])
-	r.misc_results["COST_REDISPATCH"] = sum([results[k].misc_results["COST_REDISPATCH"] for k in keys(results)])
-	r.misc_results["COST_INFEASIBILITY_EL"] = sum([results[k].misc_results["COST_INFEASIBILITY_EL"] for k in keys(results)])
-	r.misc_results["COST_INFEASIBILITY_H"] = sum([results[k].misc_results["COST_INFEASIBILITY_H"] for k in keys(results)])
-
+	for cost in ["COST_G", "COST_H", "COST_EX", "COST_CURT", "COST_REDISPATCH", "COST_INFEASIBILITY_EL", "COST_INFEASIBILITY_H"]
+		r.misc_results[cost] = sum([results[k].misc_results[cost] for k in keys(results)])
+	end
 	solved_to_opt = [results[k].misc_results["Solve Status"] != MOI.INFEASIBLE for k in keys(results)]
 	if all(solved_to_opt)
 		r.misc_results["Solve Status"] = MOI.OPTIMAL
@@ -85,7 +82,6 @@ function model_symbol_to_df(v, result_info, pomato)
 		arr = dual.(pomato.model[v])
 	elseif typeof(pomato.model[v]) == Matrix{Float64}
 		arr = pomato.model[v]
-
 	else
 		arr = value.(pomato.model[v])
 	end

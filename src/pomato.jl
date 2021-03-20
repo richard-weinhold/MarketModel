@@ -9,16 +9,23 @@ mutable struct Result
 	D_hs::DataFrame
 	L_hs::DataFrame
 	D_ph::DataFrame
-	INFEAS_H_POS::DataFrame
-	INFEAS_H_NEG::DataFrame
-	INFEAS_EL_N_POS::DataFrame
-	INFEAS_EL_N_NEG::DataFrame
+	INFEASIBILITY_H_POS::DataFrame
+	INFEASIBILITY_H_NEG::DataFrame
+	INFEASIBILITY_EL_POS::DataFrame
+	INFEASIBILITY_EL_NEG::DataFrame
 	EB_nodal::DataFrame
 	EB_zonal::DataFrame
 	CURT::DataFrame
 	Alpha::DataFrame
 	G_RES::DataFrame
 	H_RES::DataFrame
+	COST_G::DataFrame
+	COST_H::DataFrame
+	COST_EX::DataFrame
+	COST_CURT::DataFrame
+	COST_REDISPATCH::DataFrame
+	COST_INFEASIBILITY_EL::DataFrame
+	COST_INFEASIBILITY_H::DataFrame
 	misc_results::Dict
 	function Result()
 		return new()

@@ -20,27 +20,37 @@ function add_variables_expressions!(pomato::POMATO)
 	@variable(model, F_DC[1:n.t, 1:n.dc]) # Flow in DC Line dc
 
 	if options["infeasibility"]["electricity"]["include"]
-	    @variable(model, 0 <= INFEAS_EL_N_NEG[1:n.t, 1:n.nodes] <= options["infeasibility"]["electricity"]["bound"])
-	    @variable(model, 0 <= INFEAS_EL_N_POS[1:n.t, 1:n.nodes] <= options["infeasibility"]["electricity"]["bound"])
+		infeasibility_bound = options["infeasibility"]["electricity"]["bound"]
+	    @variable(model, 
+			0 <= INFEASIBILITY_EL_NEG[1:n.t, 1:n.nodes] <= infeasibility_bound
+		);
+	    @variable(model, 
+			0 <= INFEASIBILITY_EL_POS[1:n.t, 1:n.nodes] <= infeasibility_bound
+		);
 	else
-	    @variable(model, INFEAS_EL_N_NEG[1:n.t, 1:n.nodes] == 0)
-	    @variable(model, INFEAS_EL_N_POS[1:n.t, 1:n.nodes] == 0)
+	    @variable(model, INFEASIBILITY_EL_NEG[1:n.t, 1:n.nodes] == 0)
+	    @variable(model, INFEASIBILITY_EL_POS[1:n.t, 1:n.nodes] == 0)
 	end
 
 	if options["infeasibility"]["heat"]["include"]
 	    # Relaxing at high costs to avoid infeasibility in heat EB
-	    @variable(model, 0 <= INFEAS_H_NEG[1:n.t, 1:n.heatareas] <= options["infeasibility"]["heat"]["bound"])
-	    @variable(model, 0 <= INFEAS_H_POS[1:n.t, 1:n.heatareas] <= options["infeasibility"]["heat"]["bound"])
+		infeasibility_bound_heat = options["infeasibility"]["heat"]["bound"]
+	    @variable(model, 
+			0 <= INFEASIBILITY_H_NEG[1:n.t, 1:n.heatareas] <= infeasibility_bound_heat
+		);
+	    @variable(model, 
+			0 <= INFEASIBILITY_H_POS[1:n.t, 1:n.heatareas] <= infeasibility_bound_heat
+		);
 	else
-	    @expression(model, INFEAS_H_NEG[1:n.t, 1:n.heatareas], 0)
-	    @expression(model, INFEAS_H_POS[1:n.t, 1:n.heatareas], 0)
+	    @expression(model, INFEASIBILITY_H_NEG[1:n.t, 1:n.heatareas], 0)
+	    @expression(model, INFEASIBILITY_H_POS[1:n.t, 1:n.heatareas], 0)
 	end
 
-	@expression(model, INFEAS_EL_Z_NEG[t=1:n.t, zone=1:n.zones],
-	    sum(INFEAS_EL_N_NEG[t, node] for node in data.zones[zone].nodes));
+	@expression(model, INFEASIBILITY_EL_ZONAL_NEG[t=1:n.t, zone=1:n.zones],
+	    sum(INFEASIBILITY_EL_NEG[t, node] for node in data.zones[zone].nodes));
 
-	@expression(model, INFEAS_EL_Z_POS[t=1:n.t, zone=1:n.zones],
-	    sum(INFEAS_EL_N_POS[t, node] for node in data.zones[zone].nodes));
+	@expression(model, INFEASIBILITY_EL_ZONAL_POS[t=1:n.t, zone=1:n.zones],
+	    sum(INFEASIBILITY_EL_POS[t, node] for node in data.zones[zone].nodes));
 
 	# Expressions to create Nodal/Zonal Generation and Res Feedin
 	@expression(model, G_Node[t=1:n.t, node=1:n.nodes],
@@ -88,34 +98,52 @@ function add_variables_expressions!(pomato::POMATO)
 	    ? sum(data.renewables[res].mu_heat[t] for res in data.heatareas[ha].res_plants)
 	    : 0);
 
-	@expression(model, COST_G,
-	    sum(G[t, p]*data.plants[p].mc_el for p in 1:n.plants, t in 1:n.t));
-	@expression(model, COST_H,
-		n.he > 0 ? sum(H[t, he]*data.plants[mapping.he[he]].mc_heat for he in 1:n.he, t in 1:n.t) : 0);
+	add_cost_expressions!(pomato)
+end
 
+function add_cost_expressions!(pomato::POMATO)
+	model = pomato.model
+	n = pomato.n
+	data = pomato.data
+	options = pomato.options
+	mapping = pomato.mapping
+
+	G, H, EX = model[:G], model[:H], model[:EX]
+	INFEASIBILITY_EL_POS, INFEASIBILITY_EL_NEG = model[:INFEASIBILITY_EL_POS], model[:INFEASIBILITY_EL_NEG]
+	INFEASIBILITY_H_POS, INFEASIBILITY_H_NEG = model[:INFEASIBILITY_H_POS], model[:INFEASIBILITY_H_NEG]
+	@expression(model, COST_G[t=1:n.t],
+	    sum(G[t, p]*data.plants[p].mc_el for p in 1:n.plants));
+	@expression(model, COST_H[t=1:n.t],
+		n.he > 0 ? sum(H[t, he]*data.plants[mapping.he[he]].mc_heat for he in 1:n.he) : 0);
 	if n.res > 0
-		add_to_expression!(COST_G, sum(sum(data.renewables[res].mu * data.renewables[res].mc_el for res in 1:n.res)));
+		for t in 1:n.t
+			add_to_expression!(COST_G[t], 
+				sum(data.renewables[res].mu[t] * data.renewables[res].mc_el for res in 1:n.res)
+			);
+		end
 	end
 	if (n.res > 0)&(n.he > 0)
-		add_to_expression!(COST_H, sum(sum(data.renewables[res].mu_heat * data.renewables[res].mc_heat for res in 1:n.res)));
+		for t in 1:n.t
+			add_to_expression!(COST_H[t], 
+				sum(data.renewables[res].mu_heat[t] * data.renewables[res].mc_heat for res in 1:n.res)
+			);
+		end
 	end
-
-	@expression(model, COST_EX, sum(EX)*1e-1);
-	@expression(model, COST_INFEASIBILITY_EL, (sum(INFEAS_EL_N_POS)
-		+ sum(INFEAS_EL_N_NEG))*options["infeasibility"]["electricity"]["cost"]);
-	@expression(model, COST_INFEASIBILITY_H, (sum(INFEAS_H_POS)
-		+ sum(INFEAS_H_NEG))*options["infeasibility"]["heat"]["cost"]);
-	@expression(model, COST_CURT, GenericAffExpr{Float64, VariableRef}(0));
-	@expression(model, COST_REDISPATCH, GenericAffExpr{Float64, VariableRef}(0));
-
+	@expression(model, COST_EX[t=1:n.t], sum(EX[t, :, :])*1e-1);
+	@expression(model, COST_INFEASIBILITY_EL[t=1:n.t], (sum(INFEASIBILITY_EL_POS[t, :])
+		+ sum(INFEASIBILITY_EL_NEG[t, :]))*options["infeasibility"]["electricity"]["cost"]);
+	@expression(model, COST_INFEASIBILITY_H[t=1:n.t], (sum(INFEASIBILITY_H_POS[t, :])
+		+ sum(INFEASIBILITY_H_NEG[t, :]))*options["infeasibility"]["heat"]["cost"]);
+	@expression(model, COST_CURT[t=1:n.t], GenericAffExpr{Float64, VariableRef}(0));
+	@expression(model, COST_REDISPATCH[t=1:n.t], GenericAffExpr{Float64, VariableRef}(0));
 end
 
 function add_objective!(pomato::POMATO)
 	model = pomato.model
 	# Objective Function based on Cost Expressions
-	@objective(model, Min, model[:COST_G] + model[:COST_H] + model[:COST_EX]
-						   + model[:COST_INFEASIBILITY_EL] + model[:COST_INFEASIBILITY_H]
-						   + model[:COST_CURT]);
+	@objective(model, Min, sum(model[:COST_G]) + sum(model[:COST_H]) + sum(model[:COST_EX])
+						   + sum(model[:COST_INFEASIBILITY_EL]) + sum(model[:COST_INFEASIBILITY_H])
+						   + sum(model[:COST_CURT]));
 end
 
 function add_result!(pomato::POMATO)
@@ -127,11 +155,10 @@ function add_electricity_storage_constraints!(pomato::POMATO)
 	D_es, L_es, G = model[:D_es], model[:L_es], model[:G]
 
 	# Electricity Storage Equations
+	storage_start(es) = data.plants[mapping.es[es]].storage_start*data.plants[mapping.es[es]].storage_capacity
 	@constraint(model, [t=1:n.t, es=1:n.es],
-			L_es[t, es]  == (t>1 ? L_es[t-1, es] : data.plants[mapping.es[es]].storage_start*data.plants[mapping.es[es]].storage_capacity)
-						   + data.plants[mapping.es[es]].inflow[t]
-						   - G[t, mapping.es[es]]
-						   + data.plants[mapping.es[es]].eta*D_es[t, es])
+			L_es[t, es]  == (t>1 ? L_es[t-1, es] : storage_start(es)) + data.plants[mapping.es[es]].inflow[t]  
+			- G[t, mapping.es[es]] + data.plants[mapping.es[es]].eta*D_es[t, es])
 
 	@constraint(model, [t=1:n.t],
 		L_es[t, :] .<= [data.plants[mapping.es[es]].storage_capacity for es in 1:n.es])
@@ -140,17 +167,19 @@ function add_electricity_storage_constraints!(pomato::POMATO)
 		D_es[t, :] .<= [data.plants[mapping.es[es]].g_max for es in 1:n.es])
 
 	# lower bound on storage level in last timestep
-	@constraint(model,
-		L_es[n.t, :] .>= [data.plants[mapping.es[es]].storage_end*data.plants[mapping.es[es]].storage_capacity for es in 1:n.es])
+	storage_end(es) = data.plants[mapping.es[es]].storage_end*data.plants[mapping.es[es]].storage_capacity
+	@constraint(model, L_es[n.t, :] .>= [storage_end(es) for es in 1:n.es]);
 end
 
 function add_electricity_generation_constraints!(pomato::POMATO)
 	model, n, mapping, data, options = pomato.model, pomato.n, pomato.mapping, pomato.data, pomato.options
 	# make Variable References Available
 	G, INJ, EX, F_DC = model[:G], model[:INJ], model[:EX], model[:F_DC]
-	INFEAS_EL_N_POS, INFEAS_EL_N_NEG = model[:INFEAS_EL_N_POS], model[:INFEAS_EL_N_NEG]
+	INFEASIBILITY_EL_POS = model[:INFEASIBILITY_EL_POS]
+	INFEASIBILITY_EL_NEG = model[:INFEASIBILITY_EL_NEG]
 	# make Expression References Available
-	INFEAS_EL_Z_POS, INFEAS_EL_Z_NEG = model[:INFEAS_EL_Z_POS], model[:INFEAS_EL_Z_NEG]
+	INFEASIBILITY_EL_ZONAL_POS = model[:INFEASIBILITY_EL_ZONAL_POS]
+	INFEASIBILITY_EL_ZONAL_NEG = model[:INFEASIBILITY_EL_ZONAL_NEG]
 	G_Node, G_Zone = model[:G_Node], model[:G_Zone]
 	D_Node, D_Zone = model[:D_Node], model[:D_Zone]
 	RES_Node, RES_Zone = model[:RES_Node], model[:RES_Zone]
@@ -176,8 +205,11 @@ function add_electricity_energy_balance!(pomato::POMATO)
 	G_Zone, G_Node = model[:G_Zone], model[:G_Node]
 	RES_Zone, RES_Node = model[:RES_Zone], model[:RES_Node]
 	D_Zone, D_Node = model[:D_Zone], model[:D_Node]
-	INFEAS_EL_Z_POS, INFEAS_EL_Z_NEG = model[:INFEAS_EL_Z_POS], model[:INFEAS_EL_Z_NEG]
-	INFEAS_EL_N_POS, INFEAS_EL_N_NEG = model[:INFEAS_EL_N_POS], model[:INFEAS_EL_N_NEG]
+	INFEASIBILITY_EL_POS = model[:INFEASIBILITY_EL_POS]
+	INFEASIBILITY_EL_NEG = model[:INFEASIBILITY_EL_NEG]
+	# make Expression References Available
+	INFEASIBILITY_EL_ZONAL_POS = model[:INFEASIBILITY_EL_ZONAL_POS]
+	INFEASIBILITY_EL_ZONAL_NEG = model[:INFEASIBILITY_EL_ZONAL_NEG]
 	INJ = model[:INJ]
 	F_DC = model[:F_DC]
 	EX = model[:EX]
@@ -196,7 +228,7 @@ function add_electricity_energy_balance!(pomato::POMATO)
 		+ G_Zone[t, z] + RES_Zone[t, z] - D_Zone[t, z]
 		- sum(EX[t, z, zz] for zz in 1:n.zones)
 		+ sum(EX[t, zz, z] for zz in 1:n.zones)
-		+ INFEAS_EL_Z_POS[t, z] - INFEAS_EL_Z_NEG[t, z]
+		+ INFEASIBILITY_EL_ZONAL_POS[t, z] - INFEASIBILITY_EL_ZONAL_NEG[t, z]
 		)
 
 	# Nodal Energy Balance
@@ -206,7 +238,7 @@ function add_electricity_energy_balance!(pomato::POMATO)
 		+ G_Node[t, node] + RES_Node[t, node] - D_Node[t, node]
 		- sum(dc_incidence[node, dc]*F_DC[t, dc] for dc in 1:n.dc)
 		- INJ[t, node]
-		+ INFEAS_EL_N_POS[t, node] - INFEAS_EL_N_NEG[t, node]
+		+ INFEASIBILITY_EL_POS[t, node] - INFEASIBILITY_EL_NEG[t, node]
 		)
 end
 
@@ -219,7 +251,8 @@ function add_heat_generation_constraints!(pomato::POMATO)
 	G, H = model[:G], model[:H]
 	D_hs = model[:D_hs]
 	L_hs = model[:L_es]
-	INFEAS_H_POS, INFEAS_H_NEG = model[:INFEAS_H_POS], model[:INFEAS_H_NEG]
+	INFEASIBILITY_H_POS = model[:INFEASIBILITY_H_POS]
+	INFEASIBILITY_H_NEG = model[:INFEASIBILITY_H_NEG]
 	# make Expression References Available
 	H_Heatarea = model[:H_Heatarea]
 	D_Heatarea = model[:D_Heatarea]
@@ -258,7 +291,7 @@ function add_heat_generation_constraints!(pomato::POMATO)
 	@constraint(model, EB_Heat[t=1:n.t],
 	    [data.heatareas[ha].demand[t] for ha in 1:n.heatareas] .==
 	    .+ H_Heatarea[t, :] .+ RES_Heatarea[t, :] .- D_Heatarea[t, :]
-	    .+ INFEAS_H_POS[t, :] .- INFEAS_H_NEG[t, :])
+	    .+ INFEASIBILITY_H_POS[t, :] .- INFEASIBILITY_H_NEG[t, :])
 end
 
 function add_curtailment_constraints!(pomato::POMATO, zones::Vector{String}, curt_market::Array{Float64, 2})
@@ -282,7 +315,9 @@ function add_curtailment_constraints!(pomato::POMATO, zones::Vector{String}, cur
 	 end
  	# @constraint(model, [t=1:n.t, res=res_in_zone], CURT[t, res] <= 0.2*data.renewables[res].mu[t])
 	COST_CURT = model[:COST_CURT]
-	add_to_expression!(COST_CURT, sum(CURT*pomato.options["curtailment"]["cost"]))
+	for t in 1:n.t
+		add_to_expression!(COST_CURT[t], sum(CURT[t, :])*pomato.options["curtailment"]["cost"])
+	end
 end
 
 function add_curtailment_constraints!(pomato::POMATO)
@@ -304,7 +339,9 @@ function add_curtailment_constraints!(pomato::POMATO)
 	 end
 	# @constraint(model, [t=1:n.t], CURT[t, :] .<= [0.2*res.mu[t] for res in data.renewables])
 	COST_CURT = model[:COST_CURT]
-	add_to_expression!(COST_CURT, sum(CURT*pomato.options["curtailment"]["cost"]))
+	for t in 1:n.t
+		add_to_expression!(COST_CURT[t], sum(CURT[t, :])*pomato.options["curtailment"]["cost"])
+	end
 end
 
 function add_dclf_angle_constraints!(pomato::POMATO)
@@ -375,22 +412,29 @@ function add_flowbased_constraints!(pomato::POMATO)
 	# zonal PTDF * NEX <= Capacity
 	# For FB Domain PTDF contains upper and lower bounds and it is time dependant
 	# For the Zonal PTDF Bounds are symmetrical, therefore we need two constraints
+	contingency_for_timestep(t) = filter(c -> c.timestep == data.t[t].name, data.contingencies)
 	if any(isdefined(contingency, :timestep) for contingency in data.contingencies)
-		@info("adding FB Domain for each timestep")
-		@constraint(model, [t=1:n.t], vcat([contingency.ptdf for contingency in filter(contingency -> contingency.timestep == data.t[t].name, data.contingencies)]...) 
-								* sum(EX[t, :, zz] - EX[t, zz, :] for zz in 1:n.zones) 
-								.<= vcat([contingency.ram for contingency in filter(contingency -> contingency.timestep == data.t[t].name, data.contingencies)]...));
+		@info("Adding FB Domain for each timestep")
+		@constraint(model, [t=1:n.t], 
+			vcat([contingency.ptdf for contingency in contingency_for_timestep(t)]...) 
+			* sum(EX[t, :, zz] - EX[t, zz, :] for zz in 1:n.zones) 
+			.<= vcat([contingency.ram for contingency in contingency_for_timestep(t)]...));
 	else
-		@info("adding zonal PTDF")
-		@constraint(model, [t=1:n.t], vcat([contingency.ptdf for contingency in data.contingencies]...) * sum(EX[t, :, zz] - EX[t, zz, :] for zz in 1:n.zones) .<= vcat([contingency.ram for contingency in data.contingencies]...));
-		@constraint(model, [t=1:n.t], -vcat([contingency.ptdf for contingency in data.contingencies]...) * sum(EX[t, :, zz] - EX[t, zz, :] for zz in 1:n.zones) .<= vcat([contingency.ram for contingency in data.contingencies]...));
+		@info("Adding zonal PTDF")
+		zonal_ptdf = vcat([contingency.ptdf for contingency in data.contingencies]...)
+		ram = vcat([contingency.ram for contingency in data.contingencies]...)
+		nex = sum(EX[t, :, zz] - EX[t, zz, :] for zz in 1:n.zones)
+		@constraint(model, [t=1:n.t], zonal_ptdf * nex .<= ram);
+		@constraint(model, [t=1:n.t], -zonal_ptdf * nex .<= ram);
 	end
 end
 
 function add_ntc_constraints!(pomato::POMATO)
 	model, n, mapping, data = pomato.model, pomato.n, pomato.mapping, pomato.data
 	EX = model[:EX]
-	@constraint(model, [t=1:n.t, z=1:n.zones, zz=1:n.zones], EX[t, z, zz] <= data.zones[z].ntc[zz])
+	@constraint(model, [t=1:n.t, z=1:n.zones, zz=1:n.zones], 
+		EX[t, z, zz] <= data.zones[z].ntc[zz]
+	);
 end
 
 function add_ntc_constraints!(pomato::POMATO, zones::Vector{Int})
@@ -399,8 +443,12 @@ function add_ntc_constraints!(pomato::POMATO, zones::Vector{Int})
 	EX = model[:EX]
 	@info("Including NTC Constraints for: "*join([data.zones[z].name*", " for z in zones])[1:end-2])
 	for non_fb_zone in zones
-		@constraint(model, [t=1:n.t, zz=1:n.zones], EX[t, non_fb_zone, zz] <= data.zones[non_fb_zone].ntc[zz])
-		@constraint(model, [t=1:n.t, z=1:n.zones], EX[t, z, non_fb_zone] <= data.zones[z].ntc[non_fb_zone])
+		@constraint(model, [t=1:n.t, zz=1:n.zones], 
+			EX[t, non_fb_zone, zz] <= data.zones[non_fb_zone].ntc[zz]
+		);
+		@constraint(model, [t=1:n.t, z=1:n.zones], 
+			EX[t, z, non_fb_zone] <= data.zones[z].ntc[non_fb_zone]
+		);
 	end
 end
 
@@ -410,22 +458,29 @@ function add_net_position_constraints!(pomato::POMATO)
 	nex_zones = [z.index for z in data.zones if any(z.net_position .!== missing)]
 	@info("Including NEX Constraints for: "*join([data.zones[z].name*", " for z in nex_zones])[1:end-2])
 	# # Applies to nodal model for basecase calculation:
-	@constraint(model, [t=1:n.t, z=nex_zones], sum(EX[t, z, zz] - EX[t, zz, z] for zz in 1:n.zones)
-		<= data.zones[z].net_position[t] + 0.1*abs(data.zones[z].net_position[t]))
-	@constraint(model, [t=1:n.t, z=nex_zones], sum(EX[t, z, zz] - EX[t, zz, z] for zz in 1:n.zones)
-		>= data.zones[z].net_position[t] - 0.1*abs(data.zones[z].net_position[t]))
+	@constraint(model, [t=1:n.t, z=nex_zones], 
+		sum(EX[t, z, zz] - EX[t, zz, z] for zz in 1:n.zones)
+		<= data.zones[z].net_position[t] + 0.1*abs(data.zones[z].net_position[t])
+	);
+	@constraint(model, [t=1:n.t, z=nex_zones], 
+		sum(EX[t, z, zz] - EX[t, zz, z] for zz in 1:n.zones)
+		>= data.zones[z].net_position[t] - 0.1*abs(data.zones[z].net_position[t])
+	);
 end
 
-function create_alpha_loadflow_constraint!(model::Model,
-										   ptdf::Array{Float64, 2},
-										   Alpha_Nodes::Union{Array{GenericAffExpr{Float64, VariableRef},2}, Array{Real,2}},
-										   cc_res_to_node::SparseMatrixCSC{Int8, Int64},
-										   Epsilon_root::Vector{SparseMatrixCSC{Float64, Int64}},
-										   t::Int)
+function create_alpha_loadflow_constraint!(
+	model::Model,
+	ptdf::Array{Float64, 2},
+	Alpha_Nodes::Union{Array{GenericAffExpr{Float64, VariableRef},2}, Array{Real,2}},
+ 	cc_res_to_node::SparseMatrixCSC{Int8, Int64},
+	Epsilon_root::Vector{SparseMatrixCSC{Float64, Int64}},
+	t::Int
+	)
 	@info("Load Alpha for t = $(t) using $(Threads.nthreads()) Threads")
 	B = cc_res_to_node - hcat([Alpha_Nodes[t,:] for i in 1:size(cc_res_to_node, 2)]...)
-	nonzero_indices = [findall(x -> x != GenericAffExpr{Float64, VariableRef}(0), B[:, i]) for i in 1:size(cc_res_to_node, 2) ]
-	alpha_loadflow = zeros(GenericAffExpr{Float64, VariableRef}, size(ptdf, 1), size(cc_res_to_node, 2))
+	nonzero_indices = [findall(x -> x != GenericAffExpr{Float64, VariableRef}(0), B[:, i]) for i in 1:size(cc_res_to_node, 2)]
+	alpha_loadflow = zeros(GenericAffExpr{Float64, VariableRef}, 
+						   size(ptdf, 1), size(cc_res_to_node, 2))
 	# Create Segments
 	n = size(alpha_loadflow, 2)
 	S = ceil(n/Threads.nthreads())
@@ -441,19 +496,23 @@ function create_alpha_loadflow_constraint!(model::Model,
 		end
 	end
 	T = model[:T]
-	@constraint(model, [cb=1:size(ptdf, 1)], vec(vcat(T[t, cb], (alpha_loadflow[cb, :]'*Epsilon_root[t])')) in SecondOrderCone());
+	@constraint(model, [cb=1:size(ptdf, 1)], 
+		vec(vcat(T[t, cb], (alpha_loadflow[cb, :]'*Epsilon_root[t])')) in SecondOrderCone()
+	);
 	@info("Done for t = $(t)")
 end
 
 function add_chance_constraints!(pomato::POMATO)
-
 	model, n, mapping, data, options = pomato.model, pomato.n, pomato.mapping, pomato.data, pomato.options
-
-	@info("Creating Chance Constraints for $(n.cc_res) RES generators which are larger than $(options["chance_constrained"]["cc_res_mw"]) MW")
+	@info("Creating Chance Constraints for $(n.cc_res) RES generators which are larger than "
+		  *"$(options["chance_constrained"]["cc_res_mw"]) MW")
+	
 	if options["chance_constrained"]["fixed_alpha"]
-		@info("Reserve allocation with fixed ratio for $(n.alpha) power plants which are larger than $(options["chance_constrained"]["alpha_plants_mw"]) MW")
+		@info("Reserve allocation with fixed ratio for $(n.alpha) power plants which are larger than "
+			  *"$(options["chance_constrained"]["alpha_plants_mw"]) MW")
 	else
-		@info("Reserve is freely allocated for $(n.alpha) power plants which are larger than $(options["chance_constrained"]["alpha_plants_mw"]) MW")
+		@info("Reserve is freely allocated for $(n.alpha) power plants which are larger than "
+			  *"$(options["chance_constrained"]["alpha_plants_mw"]) MW")
 	end
 	# mapping CC Res to Nodes
 	cc_res_to_node = spzeros(Int8, n.nodes, n.res)
@@ -471,26 +530,30 @@ function add_chance_constraints!(pomato::POMATO)
 	Epsilon_root = [Epsilon[t]^(1/2) for t in 1:n.t]
 	S = [sqrt(sum(Epsilon[t])) for t in 1:n.t]
 
+	plants_node_alpha(node) = findall(x -> x in intersect(mapping.alpha, data.nodes[node].plants), mapping.alpha)
 	if options["chance_constrained"]["fixed_alpha"]
 		@expression(model, Alpha[t=1:n.t, alpha=1:n.alpha],
 				data.plants[mapping.alpha[alpha]].g_max/(sum(pp.g_max for pp in data.plants[mapping.alpha])))
+		
 		@expression(model, Alpha_Nodes[t=1:n.t, node=1:n.nodes],
-			size(intersect(mapping.alpha, data.nodes[node].plants), 1) > 0 ?
-			sum(Alpha[t, alpha] for alpha in findall(x -> x in intersect(mapping.alpha, data.nodes[node].plants), mapping.alpha)) :
-				 0)
+			size(plants_node_alpha(node), 1) > 0 ? sum(Alpha[t, alpha] for alpha in plants_node_alpha(node)) : 0
+		);
 	else
 		@variable(model, Alpha[1:n.t, 1:n.alpha] >= 0)
 		@expression(model, Alpha_Nodes[t=1:n.t, node=1:n.nodes],
-			size(intersect(mapping.alpha, data.nodes[node].plants), 1) > 0 ?
-			sum(Alpha[t, alpha] for alpha in findall(x -> x in intersect(mapping.alpha, data.nodes[node].plants), mapping.alpha)) :
-				 0)
+			size(plants_node_alpha(node), 1) > 0 ? sum(Alpha[t, alpha] for alpha in plants_node_alpha(node)) : 0
+		);
 		Alpha_Nodes = convert(Array{GenericAffExpr{Float64, VariableRef},2}, Alpha_Nodes)
 	end
 
 	G, INJ = model[:G], model[:INJ]
 	@constraint(model, [t=1:n.t], sum(Alpha[t, :]) == 1);
-	@constraint(model, [t=1:n.t, alpha=1:n.alpha], G[t, mapping.alpha[alpha]] + z*Alpha[t,alpha]*S[t] <= data.plants[mapping.alpha[alpha]].g_max)
-	@constraint(model, [t=1:n.t, alpha=1:n.alpha], -G[t, mapping.alpha[alpha]] + z*Alpha[t,alpha]*S[t] <= 0)
+	@constraint(model, [t=1:n.t, alpha=1:n.alpha], 
+		G[t, mapping.alpha[alpha]] + z*Alpha[t,alpha]*S[t] <= data.plants[mapping.alpha[alpha]].g_max
+	);
+	@constraint(model, [t=1:n.t, alpha=1:n.alpha], 
+		-G[t, mapping.alpha[alpha]] + z*Alpha[t,alpha]*S[t] <= 0
+	);
 
 	@info("Adding load flow constaints... ")
 	ptdf = vcat([contingency.ptdf for contingency in data.contingencies]...)
@@ -507,9 +570,7 @@ function add_chance_constraints!(pomato::POMATO)
 	@constraint(model, [t=1:n.t], ptdf * INJ[t, :] .== F_pos[t, :] .- F_neg[t, :]);
 	@constraint(model, [t=1:n.t], F_pos[t, :] .+ z*T[t, :] .<= capacity);
 	@constraint(model, [t=1:n.t], F_neg[t, :] .+ z*T[t, :] .<= capacity);
-
 end
-
 
 function redispatch_model!(pomato::POMATO, market_model_results::Dict, redispatch_zones::Vector{String})
 	#### Previous solution and data
@@ -534,27 +595,48 @@ function redispatch_model!(pomato::POMATO, market_model_results::Dict, redispatc
 	@variable(model, INJ[1:n.t, 1:n.nodes]) # Net Injection at Node n
 	@variable(model, F_DC[1:n.t, 1:n.dc]) # Flow in DC Line dc
 
-	@variable(model, 0 <= INFEAS_NEG[1:n.t, redispatch_zones_nodes] <= pomato.options["infeasibility"]["electricity"]["bound"])
-	@variable(model, 0 <= INFEAS_POS[1:n.t, redispatch_zones_nodes] <= pomato.options["infeasibility"]["electricity"]["bound"])
+	@variable(model, 
+		0 <= INFEAS_NEG[1:n.t, redispatch_zones_nodes] <= pomato.options["infeasibility"]["electricity"]["bound"]
+	);
+	@variable(model, 
+		0 <= INFEAS_POS[1:n.t, redispatch_zones_nodes] <= pomato.options["infeasibility"]["electricity"]["bound"]
+	);
 	#
-	@expression(model, INFEAS_EL_N_NEG[t=1:n.t, node=1:n.nodes],  GenericAffExpr{Float64, VariableRef}(0));
-	@expression(model, INFEAS_EL_N_POS[t=1:n.t, node=1:n.nodes],  GenericAffExpr{Float64, VariableRef}(0));
+	@expression(model, 
+		INFEASIBILITY_EL_NEG[t=1:n.t, node=1:n.nodes], GenericAffExpr{Float64, VariableRef}(0)
+	);
+	@expression(model, 
+		INFEASIBILITY_EL_POS[t=1:n.t, node=1:n.nodes],  GenericAffExpr{Float64, VariableRef}(0)
+	);
+	@expression(model, 
+		H[1:n.t, 1:n.he],  GenericAffExpr{Float64, VariableRef}(0)
+	);
+	@expression(model, 
+		INFEASIBILITY_H_POS[1:n.t, 1:n.he], GenericAffExpr{Float64, VariableRef}(0)
+	);
+	@expression(model, 
+		INFEASIBILITY_H_NEG[1:n.t, 1:n.he], GenericAffExpr{Float64, VariableRef}(0)
+	);
 
 	for node in 1:n.nodes, t in 1:n.t
-		add_to_expression!(INFEAS_EL_N_NEG[t, node], node in redispatch_zones_nodes
+		add_to_expression!(INFEASIBILITY_EL_NEG[t, node], node in redispatch_zones_nodes
 													 ? INFEAS_NEG[t, node] + infeas_neg_market[t, node]
 													 : infeas_neg_market[t, node])
-		add_to_expression!(INFEAS_EL_N_POS[t, node], node in redispatch_zones_nodes
+		add_to_expression!(INFEASIBILITY_EL_POS[t, node], node in redispatch_zones_nodes
 													 ? INFEAS_POS[t, node] + infeas_pos_market[t, node]
 													 : infeas_pos_market[t, node])
 	end
 
-	@expression(model, INFEAS_EL_Z_NEG[t=1:n.t, z=1:n.zones],  GenericAffExpr{Float64, VariableRef}(0));
-	@expression(model, INFEAS_EL_Z_POS[t=1:n.t, z=1:n.zones],  GenericAffExpr{Float64, VariableRef}(0));
+	@expression(model, 
+		INFEASIBILITY_EL_ZONAL_NEG[t=1:n.t, z=1:n.zones],  GenericAffExpr{Float64, VariableRef}(0)
+	);
+	@expression(model, 
+		INFEASIBILITY_EL_ZONAL_POS[t=1:n.t, z=1:n.zones],  GenericAffExpr{Float64, VariableRef}(0)
+	);
 
 	for node in 1:n.nodes, t in 1:n.t
-		add_to_expression!(INFEAS_EL_Z_NEG[t, data.nodes[node].zone], INFEAS_EL_N_NEG[t, node])
-		add_to_expression!(INFEAS_EL_Z_POS[t, data.nodes[node].zone], INFEAS_EL_N_POS[t, node])
+		add_to_expression!(INFEASIBILITY_EL_ZONAL_NEG[t, data.nodes[node].zone], INFEASIBILITY_EL_NEG[t, node])
+		add_to_expression!(INFEASIBILITY_EL_ZONAL_POS[t, data.nodes[node].zone], INFEASIBILITY_EL_POS[t, node])
 	end
 
 	# Expressions to create Nodal/Zonal Generation and Res Feedin
@@ -575,12 +657,16 @@ function redispatch_model!(pomato::POMATO, market_model_results::Dict, redispatc
 	end
 
 	@expression(model, G_Zone[t=1:n.t, z=1:n.zones],
-		sum(G_Node[t, node] for node in data.zones[z].nodes));
+		sum(G_Node[t, node] for node in data.zones[z].nodes)
+	);
 
 	@expression(model, D_Zone[t=1:n.t, z=1:n.zones],
-		sum(D_Node[t, node] for node in data.zones[z].nodes));
+		sum(D_Node[t, node] for node in data.zones[z].nodes)
+	);
 
-	@expression(model, G_RES[t=1:n.t, res=1:n.res], GenericAffExpr{Float64, VariableRef}(data.renewables[res].mu[t]));
+	@expression(model, G_RES[t=1:n.t, res=1:n.res], 
+		GenericAffExpr{Float64, VariableRef}(data.renewables[res].mu[t])
+	);
 
 	@expression(model, RES_Node[t=1:n.t, node=1:n.nodes],
 		size(data.nodes[node].res_plants, 1) > 0
@@ -590,19 +676,12 @@ function redispatch_model!(pomato::POMATO, market_model_results::Dict, redispatc
 	@expression(model, RES_Zone[t=1:n.t, z=1:n.zones],
 		sum(RES_Node[t, node] for node in data.zones[z].nodes));
 
-	@expression(model, COST_G, sum(G[t, p]*data.plants[p].mc_el for p in 1:n.plants, t in 1:n.t));
-	@expression(model, COST_H, GenericAffExpr{Float64, VariableRef}(0));
-
-	if n.res > 0
-		add_to_expression!(COST_G, sum(sum(data.renewables[res].mu * data.renewables[res].mc_el for res in 1:n.res)));
+	add_cost_expressions!(pomato);
+	for t in 1:n.t
+		add_to_expression!(model[:COST_REDISPATCH][t], 
+			(sum(G_redispatch_pos[t, :]) + sum(G_redispatch_neg[t, :]))*pomato.options["redispatch"]["cost"]
+		);
 	end
-
-	@expression(model, COST_REDISPATCH, (sum(G_redispatch_pos) + sum(G_redispatch_neg))*pomato.options["redispatch"]["cost"]);
-	@expression(model, COST_EX, sum(EX)*1e-1);
-	@expression(model, COST_INFEASIBILITY_EL, (sum(INFEAS_EL_N_POS) + sum(INFEAS_EL_N_NEG))*pomato.options["infeasibility"]["electricity"]["cost"]);
-	@expression(model, COST_CURT, GenericAffExpr{Float64, VariableRef}(0));
-	@expression(model, COST_INFEASIBILITY_H, GenericAffExpr{Float64, VariableRef}(0));
-
 	# G Upper Bound
 	@constraint(model, [t=1:n.t, p=redispatch_zones_plants],
 		G_redispatch[t, p] <= data.plants[p].g_max)
@@ -626,6 +705,6 @@ function redispatch_model!(pomato::POMATO, market_model_results::Dict, redispatc
 	@info("$(length(redispatch_line_subset)) lines part of the redispatch network")
 
 	add_dclf_angle_constraints!(pomato, redispatch_line_subset)
-
-	@objective(model, Min, COST_G + COST_EX + COST_INFEASIBILITY_EL + COST_CURT + COST_REDISPATCH);
+	add_objective!(pomato);
+	# @objective(model, Min, COST_G + COST_EX + COST_INFEASIBILITY_EL + COST_CURT + COST_REDISPATCH);
 end

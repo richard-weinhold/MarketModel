@@ -114,8 +114,8 @@ function redispatch_model(market_result::Result, data::Data, options::Dict{Strin
 	market_result_variables["curt_market"] = size(market_result.CURT, 1) > 0 ? Array(sort(unstack(market_result.CURT, :t, :p, :CURT))[:, [res.name for res in data.renewables]]) : zeros(length(data.t), length(data.renewables))
 	market_result_variables["d_es_market"] = size(market_result.D_es, 1) > 0 ? Array(sort(unstack(market_result.D_es, :t, :p, :D_es))[:, [p.name for p in data.plants[es]]]) : Array{Float64}(undef, length(data.t), 0)
 	market_result_variables["d_ph_market"] = size(market_result.D_ph, 1) > 0 ? Array(sort(unstack(market_result.D_ph, :t, :p, :D_ph))[:, [p.name for p in data.plants[ph]]]) : Array{Float64}(undef, length(data.t), 0)
-	market_result_variables["infeas_pos_market"] = Array(sort(unstack(market_result.INFEAS_EL_N_POS, :t, :n, :INFEAS_EL_N_POS))[:, [n.name for n in data.nodes]])
-	market_result_variables["infeas_neg_market"] = Array(sort(unstack(market_result.INFEAS_EL_N_NEG, :t, :n, :INFEAS_EL_N_NEG))[:, [n.name for n in data.nodes]])
+	market_result_variables["infeas_pos_market"] = Array(sort(unstack(market_result.INFEASIBILITY_EL_POS, :t, :n, :INFEASIBILITY_EL_POS))[:, [n.name for n in data.nodes]])
+	market_result_variables["infeas_neg_market"] = Array(sort(unstack(market_result.INFEASIBILITY_EL_NEG, :t, :n, :INFEASIBILITY_EL_NEG))[:, [n.name for n in data.nodes]])
 
 	data.contingencies = data.redispatch_contingencies
 	pomato = POMATO(Model(), data, options)
@@ -157,7 +157,6 @@ function solve_redispatch_model(data::Data, market_result_variables::Dict{String
 	redispatch_model!(pomato, market_result_variables, redispatch_zones);
 	add_curtailment_constraints!(pomato, redispatch_zones, market_result_variables["curt_market"]);
 	add_electricity_energy_balance!(pomato);
-
 	# add_objective!(pomato)
 	@info("Solving...")
 	t_start = time_ns()

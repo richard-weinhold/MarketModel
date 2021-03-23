@@ -635,8 +635,10 @@ function redispatch_model!(pomato::POMATO, market_model_results::Dict, redispatc
 	);
 
 	for node in 1:n.nodes, t in 1:n.t
-		add_to_expression!(INFEASIBILITY_EL_ZONAL_NEG[t, data.nodes[node].zone], INFEASIBILITY_EL_NEG[t, node])
-		add_to_expression!(INFEASIBILITY_EL_ZONAL_POS[t, data.nodes[node].zone], INFEASIBILITY_EL_POS[t, node])
+		add_to_expression!(INFEASIBILITY_EL_ZONAL_NEG[t, data.nodes[node].zone], 
+						   INFEASIBILITY_EL_NEG[t, node])
+		add_to_expression!(INFEASIBILITY_EL_ZONAL_POS[t, data.nodes[node].zone], 
+						   INFEASIBILITY_EL_POS[t, node])
 	end
 
 	# Expressions to create Nodal/Zonal Generation and Res Feedin

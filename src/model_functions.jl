@@ -612,10 +612,10 @@ function redispatch_model!(pomato::POMATO, market_model_results::Dict, redispatc
 		H[1:n.t, 1:n.he],  GenericAffExpr{Float64, VariableRef}(0)
 	);
 	@expression(model, 
-		INFEASIBILITY_H_POS[1:n.t, 1:n.he], GenericAffExpr{Float64, VariableRef}(0)
+		INFEASIBILITY_H_POS[1:n.t, 1:n.heatareas], GenericAffExpr{Float64, VariableRef}(0)
 	);
 	@expression(model, 
-		INFEASIBILITY_H_NEG[1:n.t, 1:n.he], GenericAffExpr{Float64, VariableRef}(0)
+		INFEASIBILITY_H_NEG[1:n.t, 1:n.heatareas], GenericAffExpr{Float64, VariableRef}(0)
 	);
 
 	for node in 1:n.nodes, t in 1:n.t

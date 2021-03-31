@@ -143,7 +143,7 @@ function add_objective!(pomato::POMATO)
 	# Objective Function based on Cost Expressions
 	@objective(model, Min, sum(model[:COST_G]) + sum(model[:COST_H]) + sum(model[:COST_EX])
 						   + sum(model[:COST_INFEASIBILITY_EL]) + sum(model[:COST_INFEASIBILITY_H])
-						   + sum(model[:COST_CURT]));
+						   + sum(model[:COST_CURT]) + sum(model[:COST_REDISPATCH]));
 end
 
 function add_result!(pomato::POMATO)
@@ -301,9 +301,10 @@ function add_curtailment_constraints!(pomato::POMATO, zones::Vector{String}, cur
 	RES_Zone = model[:RES_Zone]
 	redispatch_zones_nodes = vcat([data.zones[z].nodes for z in findall(z -> z.name in zones, data.zones)]...)
 	res_in_zone = findall(r -> r.node in redispatch_zones_nodes, data.renewables)
+
 	@variable(model, CURT[1:n.t, res_in_zone] >= 0)
 	@constraint(model, MinCurt[t=1:n.t, res=res_in_zone],
-		CURT[t, res] >= curt_market[t, res])
+		CURT[t, res] == curt_market[t, res])
 	@constraint(model, MaxCurt[t=1:n.t, res=res_in_zone],
 		CURT[t, res] <= G_RES[t, res])
 	for t in 1:n.t
@@ -648,7 +649,7 @@ function redispatch_model!(pomato::POMATO, market_model_results::Dict, redispatc
 	infeas_neg_market, infeas_pos_market = market_model_results["infeas_neg_market"], market_model_results["infeas_pos_market"]
 
 	redispatch_zones_nodes = vcat([data.zones[z].nodes for z in findall(z -> z.name in redispatch_zones, data.zones)]...)
-	redispatch_zones_plants = setdiff(findall(p -> p.node in redispatch_zones_nodes, data.plants), pomato.mapping.es)
+	redispatch_zones_plants = setdiff(findall(p -> p.node in redispatch_zones_nodes, data.plants), union(pomato.mapping.es, mapping.ph))
 
 	## Build Redispatch model
 	@variable(model, G_redispatch[1:n.t, redispatch_zones_plants] >= 0) # El. power generation per plant p
@@ -714,13 +715,16 @@ function redispatch_model!(pomato::POMATO, market_model_results::Dict, redispatc
 	@expression(model, G_Node[t=1:n.t, node=1:n.nodes],
 		size(data.nodes[node].plants, 1) > 0 ? sum(G[t, plant] for plant in data.nodes[node].plants) : 0);
 
-	@expression(model, D_Node[t=1:n.t, node=1:n.nodes], GenericAffExpr{Float64, VariableRef}(0))
-	for es in 1:n.es, t in 1:n.t
-		add_to_expression!(D_Node[t, data.plants[es].node], d_es_market[t, es])
-	end
-	for ph in 1:n.ph, t in 1:n.t
-		add_to_expression!(D_Node[t, data.plants[ph].node], d_ph_market[t, ph])
-	end
+	@expression(model, D_es[t=1:n.t, es=1:n.es], d_es_market[t, es])
+	@expression(model, D_ph[t=1:n.t, ph=1:n.ph], d_ph_market[t, ph])
+
+	@expression(model, D_Node[t=1:n.t, node=1:n.nodes],
+		size(intersect(data.nodes[node].plants, mapping.ph), 1) > 0
+	    ? sum(D_ph[t, findfirst(ph -> ph==plant, mapping.ph)] for plant in intersect(data.nodes[node].plants, mapping.ph))
+	    : 0
+		+ size(intersect(data.nodes[node].plants, mapping.es), 1) > 0
+	    ? sum(D_es[t, findfirst(es -> es==plant, mapping.es)] for plant in intersect(data.nodes[node].plants, mapping.es))
+	    : 0 );
 
 	@expression(model, G_Zone[t=1:n.t, z=1:n.zones],
 		sum(G_Node[t, node] for node in data.zones[z].nodes)
@@ -745,13 +749,16 @@ function redispatch_model!(pomato::POMATO, market_model_results::Dict, redispatc
 	add_cost_expressions!(pomato);
 	for t in 1:n.t
 		add_to_expression!(model[:COST_REDISPATCH][t], 
-			(sum(G_redispatch_pos[t, :]) + sum(G_redispatch_neg[t, :]))*pomato.options["redispatch"]["cost"]
+			(sum(G_redispatch_pos[t, :]*pomato.options["redispatch"]["cost"]) + sum(G_redispatch_neg[t, :]*pomato.options["redispatch"]["cost"]))
 		);
 	end
 	# G Upper Bound
 	@constraint(model, [t=1:n.t, p=redispatch_zones_plants],
 		G_redispatch[t, p] <= data.plants[p].g_max)
-
+	# @constraint(model, [t=1:n.t, p=redispatch_zones_plants],
+	# 	G_redispatch_neg[t, p] <= data.plants[p].g_max)
+	# @constraint(model, [t=1:n.t, p=redispatch_zones_plants],
+	# 	G_redispatch_pos[t, p] <= data.plants[p].g_max)
 	@constraint(model, [t=1:n.t, p=redispatch_zones_plants],
 		G_redispatch[t, p] - g_market[t, p] == G_redispatch_pos[t, p] - G_redispatch_neg[t, p])
 	
@@ -767,10 +774,7 @@ function redispatch_model!(pomato::POMATO, market_model_results::Dict, redispatc
 		
 	redispatch_zones_idx = map(name -> findfirst(zone -> zone.name == name, data.zones), redispatch_zones)  
 	redispatch_line_subset = findall(line -> (line.zone_i in redispatch_zones_idx)&(line.zone_j in redispatch_zones_idx), data.lines)
-
 	@info("$(length(redispatch_line_subset)) lines part of the redispatch network")
-
 	add_dclf_angle_constraints!(pomato, redispatch_line_subset)
 	add_objective!(pomato);
-	# @objective(model, Min, COST_G + COST_EX + COST_INFEASIBILITY_EL + COST_CURT + COST_REDISPATCH);
 end

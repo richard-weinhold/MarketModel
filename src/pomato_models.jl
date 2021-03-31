@@ -161,7 +161,6 @@ function solve_redispatch_model(data::Data, market_result_variables::Dict{String
 	redispatch_model!(pomato, market_result_variables, redispatch_zones);
 	add_curtailment_constraints!(pomato, redispatch_zones, market_result_variables["curt_market"]);
 	add_electricity_energy_balance!(pomato);
-	# add_objective!(pomato)
 	@info("Solving...")
 	t_start = time_ns()
 	JuMP.optimize!(pomato.model)

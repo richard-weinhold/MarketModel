@@ -42,29 +42,33 @@ function market_model(data::Data, options::Dict{String, Any})
 	end
 
 	if in(pomato.options["type"] , ["zonal", "cbco_zonal"])
-		@info("Adding FlowBased Constraints...")
-		add_flowbased_constraints!(pomato)
+		if options["chance_constrained"]["include"]
+			@info("Adding FB-Chance Constraints...")
+			@time add_chance_constrained_flowbased_constraints!(pomato)
+		else
+			@info("Adding FlowBased Constraints...")
+			add_flowbased_constraints!(pomato)
+		end
 		non_fb_region = findall(zone -> !(zone.name in options["grid"]["flowbased_region"]), data.zones)
 		if length(non_fb_region) > 0
 			add_ntc_constraints!(pomato, non_fb_region)
 		end
 	end
 
-	if in(pomato.options["type"] , ["nodal", "cbco_nodal"]) & !options["chance_constrained"]["include"]
-		if length(data.contingencies) > 1
-			@info("Adding power flow constraints using the PTDF formulation.")
-			add_dclf_ptdf_constraints!(pomato)
-		else
-			@info("Adding power flow constraints using the angle formulation.")
-			add_dclf_angle_constraints!(pomato)
-			# add_dclf_ptdf_constraints!(pomato)
+	if in(pomato.options["type"] , ["nodal", "cbco_nodal"]) 
+		if options["chance_constrained"]["include"]
+			@info("Adding Chance Constraints...")
+			@time add_chance_constraints!(pomato)
+		else	
+			if length(data.contingencies) > 1
+				@info("Adding power flow constraints using the PTDF formulation.")
+				add_dclf_ptdf_constraints!(pomato)
+			else
+				@info("Adding power flow constraints using the angle formulation.")
+				add_dclf_angle_constraints!(pomato)
+				# add_dclf_ptdf_constraints!(pomato)
+			end
 		end
-	end
-
-
-	if options["chance_constrained"]["include"]
-		@info("Adding Chance Constraints...")
-		@time add_chance_constraints!(pomato)
 	end
 
 	if (pomato.options["constrain_nex"])

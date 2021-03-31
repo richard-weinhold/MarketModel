@@ -412,13 +412,13 @@ function add_flowbased_constraints!(pomato::POMATO)
 	# zonal PTDF * NEX <= Capacity
 	# For FB Domain PTDF contains upper and lower bounds and it is time dependant
 	# For the Zonal PTDF Bounds are symmetrical, therefore we need two constraints
-	contingency_for_timestep(t) = filter(c -> c.timestep == data.t[t].name, data.contingencies)
+	contingency_t(t) = filter(c -> c.timestep == data.t[t].name, data.contingencies)
 	if any(isdefined(contingency, :timestep) for contingency in data.contingencies)
 		@info("Adding FB Domain for each timestep")
 		@constraint(model, [t=1:n.t], 
-			vcat([contingency.ptdf for contingency in contingency_for_timestep(t)]...) 
+			vcat([contingency.ptdf for contingency in contingency_t(t)]...) 
 			* sum(EX[t, :, zz] - EX[t, zz, :] for zz in 1:n.zones) 
-			.<= vcat([contingency.ram for contingency in contingency_for_timestep(t)]...));
+			.<= vcat([contingency.ram for contingency in contingency_t(t)]...));
 	else
 		@info("Adding zonal PTDF")
 		zonal_ptdf = vcat([contingency.ptdf for contingency in data.contingencies]...)
@@ -426,6 +426,72 @@ function add_flowbased_constraints!(pomato::POMATO)
 		nex = sum(EX[t, :, zz] - EX[t, zz, :] for zz in 1:n.zones)
 		@constraint(model, [t=1:n.t], zonal_ptdf * nex .<= ram);
 		@constraint(model, [t=1:n.t], -zonal_ptdf * nex .<= ram);
+	end
+end
+
+function add_chance_constrained_flowbased_constraints!(pomato::POMATO)
+
+	model, n, mapping, data, options = pomato.model, pomato.n, pomato.mapping, pomato.data, pomato.options;
+	# mapping CC Res to Nodes
+	cc_res_to_zone = spzeros(Int8, n.zones, n.res)
+	for res in data.renewables[mapping.cc_res]
+		cc_res_to_zone[data.nodes[data.renewables[mapping.cc_res][1].node].zone, res.index] = Int8(1)
+	end
+	cc_res_to_zone = cc_res_to_zone[:, mapping.cc_res]
+
+	# Distribution Paramters
+	epsilon = 0.05
+	z = quantile(Normal(0,1), 1-epsilon);
+	sigma = hcat([res.sigma for res in data.renewables[mapping.cc_res]]...);
+	# sigma = zeros(n.t, n_cc_res)
+	Epsilon = [sparse(diagm(0 => (sigma[t, :].^2))) for t in 1:n.t];
+	Epsilon_root = [Epsilon[t]^(1/2) for t in 1:n.t];
+	S = [sqrt(sum(Epsilon[t])) for t in 1:n.t];
+
+	alpha_plants(node) = findall(x -> x in intersect(mapping.alpha, data.nodes[node].plants), mapping.alpha);
+	if options["chance_constrained"]["fixed_alpha"]
+		@expression(model, Alpha[t=1:n.t, alpha=1:n.alpha],
+				data.plants[mapping.alpha[alpha]].g_max/(sum(pp.g_max for pp in data.plants[mapping.alpha])));
+		@expression(model, Alpha_Nodes[t=1:n.t, node=1:n.nodes],
+			size(alpha_plants(node), 1) > 0 ?
+			sum(Alpha[t, alpha] for alpha in alpha_plants(node)) : 0);
+	else
+		@variable(model, Alpha[1:n.t, 1:n.alpha] >= 0);
+		@expression(model, Alpha_Nodes[t=1:n.t, node=1:n.nodes],
+			size(alpha_plants(node), 1) > 0 ?
+			sum(Alpha[t, alpha] for alpha in alpha_plants(node)) : 0);
+		Alpha_Nodes = convert(Array{GenericAffExpr{Float64, VariableRef},2}, Alpha_Nodes)
+	end
+				
+	@expression(model, Alpha_Zones[t=1:n.t, z=1:n.zones],
+		sum(Alpha_Nodes[t, node] for node in data.zones[z].nodes));
+	G, INJ = model[:G], model[:INJ];
+	@constraint(model, [t=1:n.t], sum(Alpha[t, :]) == 1);
+	@constraint(model, [t=1:n.t, alpha=1:n.alpha], G[t, mapping.alpha[alpha]] + z*Alpha[t,alpha]*S[t] <= data.plants[mapping.alpha[alpha]].g_max);
+	@constraint(model, [t=1:n.t, alpha=1:n.alpha], -G[t, mapping.alpha[alpha]] + z*Alpha[t,alpha]*S[t] <= 0);
+
+	@info("Adding load flow constaints... ")
+	contingency_t(t) = filter(c -> c.timestep == data.t[t].name, data.contingencies)
+	contingency_idx_t(t) = findall(c -> c.timestep == data.t[t].name, data.contingencies)
+	ptdf_t(t) = vcat([contingency.ptdf for contingency in contingency_t(t)]...) 
+	ram_t(t) = vcat([contingency.ram for contingency in contingency_t(t)]...) 
+	@variable(model, 
+		CC_LINE_MARGIN[t=1:n.t, co=contingency_idx_t(t), cb=1:length(data.contingencies[co].lines)] >= 0
+	);
+	CC_LINE_MARGIN_t(t) = [CC_LINE_MARGIN[t, co, cb] for co in contingency_idx_t(t) for cb in 1:length(data.contingencies[co].lines)]
+
+	EX = model[:EX]
+	for t in 1:n.t
+		ptdf = ptdf_t(t)
+		ram = ram_t(t)
+		B = cc_res_to_zone - hcat([Alpha_Zones[t,:] for i in 1:size(cc_res_to_zone, 2)]...)
+		alpha_loadflow = create_alpha_loadflow_constraint(ptdf, B, cc_res_to_zone)
+		@constraint(model, [cb=1:size(ptdf, 1)], 
+			vec(vcat(CC_LINE_MARGIN_t(t)[cb], (alpha_loadflow[cb, :]'*Epsilon_root[t])')) in SecondOrderCone()
+		);
+		@constraint(model, 
+			Array(ptdf * sum(EX[t, :, zz] - EX[t, zz, :] for zz in 1:n.zones)/z .+ CC_LINE_MARGIN_t(t)) .<= ram/z
+		);
 	end
 end
 
@@ -468,25 +534,20 @@ function add_net_position_constraints!(pomato::POMATO)
 	);
 end
 
-function create_alpha_loadflow_constraint!(
-	model::Model,
+function create_alpha_loadflow_constraint(
 	ptdf::Array{Float64, 2},
-	Alpha_Nodes::Union{Array{GenericAffExpr{Float64, VariableRef},2}, Array{Real,2}},
- 	cc_res_to_node::SparseMatrixCSC{Int8, Int64},
-	Epsilon_root::Vector{SparseMatrixCSC{Float64, Int64}},
-	t::Int
-	)
-	@info("Load Alpha for t = $(t) using $(Threads.nthreads()) Threads")
-	B = cc_res_to_node - hcat([Alpha_Nodes[t,:] for i in 1:size(cc_res_to_node, 2)]...)
-	nonzero_indices = [findall(x -> x != GenericAffExpr{Float64, VariableRef}(0), B[:, i]) for i in 1:size(cc_res_to_node, 2)]
+	B::Union{Array{GenericAffExpr{Float64, VariableRef},2}, Array{Real,2}, Array{Float64,2}},
+	cc_res_incidence::SparseMatrixCSC{Int8,Int64})
+
+	nonzero_indices = [findall(x -> x != GenericAffExpr{Float64, VariableRef}(0), B[:, i]) for i in 1:size(cc_res_incidence, 2)]
 	alpha_loadflow = zeros(GenericAffExpr{Float64, VariableRef}, 
-						   size(ptdf, 1), size(cc_res_to_node, 2))
+						   size(ptdf, 1), size(cc_res_incidence, 2))
 	# Create Segments
-	n = size(alpha_loadflow, 2)
-	S = ceil(n/Threads.nthreads())
+	n_hat = size(alpha_loadflow, 2)
+	S = ceil(n_hat/Threads.nthreads())
 	ranges = Array{UnitRange{Int},1}()
 	for i in 1:Threads.nthreads()
-		push!(ranges, range(Int((i-1)*S + 1), stop=Int(min(n, i*S))))
+		push!(ranges, range(Int((i-1)*S + 1), stop=Int(min(n_hat, i*S))))
 	end
 	Threads.@threads for r in ranges
 		for i in r
@@ -495,11 +556,7 @@ function create_alpha_loadflow_constraint!(
 	   		end
 		end
 	end
-	T = model[:T]
-	@constraint(model, [cb=1:size(ptdf, 1)], 
-		vec(vcat(T[t, cb], (alpha_loadflow[cb, :]'*Epsilon_root[t])')) in SecondOrderCone()
-	);
-	@info("Done for t = $(t)")
+	return alpha_loadflow
 end
 
 function add_chance_constraints!(pomato::POMATO)
@@ -558,18 +615,25 @@ function add_chance_constraints!(pomato::POMATO)
 	@info("Adding load flow constaints... ")
 	ptdf = vcat([contingency.ptdf for contingency in data.contingencies]...)
 	capacity = vcat([contingency.ram for contingency in data.contingencies]...)
-	@variable(model, T[1:n.t, 1:size(ptdf, 1)] >= 0)
+	@variable(model, CC_LINE_MARGIN[t=1:n.t, co=1:n.contingencies, cb=1:length(data.contingencies[co].lines)] >= 0)
+	CC_LINE_MARGIN_t(t) = [CC_LINE_MARGIN[t, co, cb] for co in 1:n.contingencies for cb in 1:length(data.contingencies[co].lines)]
 
 	for t in 1:n.t
-		create_alpha_loadflow_constraint!(model, ptdf, Alpha_Nodes, cc_res_to_node, Epsilon_root, t)
+		@info("Load Alpha for t = $(t) using $(Threads.nthreads()) Threads")
+		B = cc_res_to_node - hcat([Alpha_Nodes[t,:] for i in 1:size(cc_res_to_node, 2)]...)
+		# Create Segments
+		alpha_loadflow = create_alpha_loadflow_constraint(ptdf, B, cc_res_to_node)
+		@constraint(model, [cb=1:size(ptdf, 1)], 
+			vec(vcat(CC_LINE_MARGIN_t(t)[cb], (alpha_loadflow[cb, :]'*Epsilon_root[t])')) in SecondOrderCone()
+		);
 	end
 	@info("PTDF constraints... ")
  	@variable(model, F_pos[1:n.t, 1:size(ptdf, 1)] >= 0)
 	@variable(model, F_neg[1:n.t, 1:size(ptdf, 1)] >= 0)
 
 	@constraint(model, [t=1:n.t], ptdf * INJ[t, :] .== F_pos[t, :] .- F_neg[t, :]);
-	@constraint(model, [t=1:n.t], F_pos[t, :] .+ z*T[t, :] .<= capacity);
-	@constraint(model, [t=1:n.t], F_neg[t, :] .+ z*T[t, :] .<= capacity);
+	@constraint(model, [t=1:n.t], F_pos[t, :]/z .+ CC_LINE_MARGIN_t(t) .<= capacity/z);
+	@constraint(model, [t=1:n.t], F_neg[t, :]/z .+ CC_LINE_MARGIN_t(t) .<= capacity/z);
 end
 
 function redispatch_model!(pomato::POMATO, market_model_results::Dict, redispatch_zones::Vector{String})

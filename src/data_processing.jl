@@ -242,7 +242,7 @@ function populate_contingencies(grid_data::DataFrame, raw::RAW, lines::Vector{Li
     for contingency in unique(grid_data[:, :co])
         name = contingency
         tmp_co = grid_data[grid_data[:, :co] .== contingency, :cb]
-        cb = findall(l -> l.name in tmp_co, lines)
+        cb = [findfirst(l -> l.name==line, lines) for line in tmp_co]
         co = (contingency in keys(raw.contingency_groups) ? findall(l -> l.name in raw.contingency_groups[contingency], lines) : Vector{Int}())
         ptdf = Array(grid_data[grid_data[:, :co] .== contingency, [Symbol(z.name) for z in zones]])
         ram = Vector(grid_data[grid_data[:, :co] .== contingency, :ram]).*1.

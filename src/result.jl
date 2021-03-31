@@ -2,7 +2,11 @@
 
 function get_result_info(pomato::POMATO)
 	n, mapping = pomato.n, pomato.mapping
-	var_info(x) = NamedTuple{(:sets, :indices, :columns, :dual), Tuple{Vector{Symbol}, Vector{AbstractArray{Int, 1}}, Vector{Symbol}, Bool}}(x)
+	var_info(x) = NamedTuple{(:sets, :indices, :columns, :dual), 
+							 Tuple{Vector, 
+							 Vector{AbstractArray{Int, 1}}, 
+							 Vector{Symbol}, 
+							 Bool}}(x)
 	return Dict(:G => var_info(([:t, :plants], [1:n.t, 1:n.plants], [:t, :p, :G], false)),
 			    :H => var_info(([:t, :plants], [1:n.t, mapping.he], [:t, :p, :H], false)),
 			    :INJ => var_info(([:t, :nodes], [1:n.t, 1:n.nodes], [:t, :n, :INJ], false)),
@@ -21,6 +25,7 @@ function get_result_info(pomato::POMATO)
 			    :EB_zonal => var_info(([:t, :zones], [1:n.t, 1:n.zones], [:t, :z, :EB_zonal], true)),
 			    :CURT => var_info(([:t, :renewables], [1:n.t, 1:n.res], [:t, :p, :CURT], false)),
 			    :Alpha => var_info(([:t, :plants], [1:n.t, mapping.alpha], [:t, :p, :Alpha], false)),
+			    :CC_LINE_MARGIN => var_info(([:t, :contingencies, (:contingencies, :lines)], [], [:t, :co, :cb, :T], false)),
 			    :G_RES => var_info(([:t, :renewables], [1:n.t, 1:n.res], [:t, :p, :G_RES], false)),
 			    :H_RES => var_info(([:t, :renewables], [1:n.t, 1:n.res], [:t, :p, :H_RES], false)),
 			    :COST_G => var_info(([:t], [1:n.t], [:t, :COST_G], false)),
@@ -30,7 +35,7 @@ function get_result_info(pomato::POMATO)
 			    :COST_REDISPATCH => var_info(([:t], [1:n.t], [:t, :COST_REDISPATCH], false)),
 			    :COST_INFEASIBILITY_EL => var_info(([:t], [1:n.t], [:t, :COST_INFEASIBILITY_EL], false)),
 			    :COST_INFEASIBILITY_H => var_info(([:t], [1:n.t], [:t, :COST_INFEASIBILITY_H], false)),
-				)
+			)
 end
 
 function Result(pomato::POMATO)
@@ -39,7 +44,6 @@ function Result(pomato::POMATO)
 	for v in keys(result_info)
 		setfield!(result, v, model_symbol_to_df(v, result_info, pomato))
 	end
-
 	setfield!(result, :G, vcat(result.G, rename!(result.G_RES, names(result.G))))
 	setfield!(result, :H, vcat(result.H, rename!(result.H_RES, names(result.H))))
 	# Misc Results or Data
@@ -76,6 +80,15 @@ function concat_results(results::Dict{String, Result})
 end
 
 function model_symbol_to_df(v, result_info, pomato)
+	
+	function get_name(set::Symbol, i::Int)
+		return getfield(pomato.data, set)[i].name
+	end
+	function get_name(sets::Tuple{Symbol, Symbol}, indices::Tuple{Int, Int})
+		field_index = getfield(getfield(pomato.data, sets[1])[indices[1]], sets[2])[indices[2]]
+		return get_name(sets[2], field_index)
+	end
+
 	if !(v in keys(pomato.model.obj_dict))
 		arr = zeros(Int, 0, size(result_info[v].sets, 1))
 	elseif result_info[v].dual
@@ -85,14 +98,34 @@ function model_symbol_to_df(v, result_info, pomato)
 	else
 		arr = value.(pomato.model[v])
 	end
-	dim_arr = [map(x -> x.name, getfield(pomato.data, s))[i] for (s,i) in zip(result_info[v].sets, result_info[v].indices)]
-	dims = size(dim_arr, 1)
-	rows = []
-	for ind in CartesianIndices(size(arr))
-		row_ind = [dim_arr[dim][ind.I[dim]] for dim in 1:dims]
-		push!(rows, (row_ind..., arr[ind]))
+
+	if typeof(arr) <: Array || typeof(arr) <: JuMP.Containers.DenseAxisArray
+		dim_arr = [map(x -> x.name, getfield(pomato.data, s))[i] for (s,i) in zip(result_info[v].sets, result_info[v].indices)]
+		dims = size(dim_arr, 1)
+		rows = []
+		for ind in CartesianIndices(size(arr))
+			row_ind = [dim_arr[dim][ind.I[dim]] for dim in 1:dims]
+			push!(rows, (row_ind..., arr[ind]))
+		end
+		dim_names = result_info[v].columns
+		df = DataFrame([dim_names[i] => [row[i] for row in rows] for i in 1:length(dim_names)])
+	elseif typeof(arr) <: JuMP.Containers.SparseAxisArray
+		rows = []
+		for (variable_set_indices, variable_value) in arr.data
+			row = []
+			for (i, s) in enumerate(result_info[v].sets)
+				if typeof(s) == Symbol
+					push!(row, get_name(s, variable_set_indices[i]))
+				elseif typeof(s) <: Tuple
+					push!(row, get_name(s, (variable_set_indices[i-1], variable_set_indices[i])))
+				end
+			end
+			push!(rows, push!(row, variable_value))
+		end
+		dim_names = result_info[v].columns
+		df = DataFrame([dim_names[i] => [row[i] for row in rows] for i in 1:length(dim_names)])
+	else
+		@error("Variable $(v) of unsupported type.")
 	end
-	dim_names = result_info[v].columns
-	df = DataFrame([dim_names[i] => [row[i] for row in rows] for i in 1:length(dim_names)])
 	return df
 end

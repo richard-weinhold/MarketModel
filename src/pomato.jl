@@ -17,6 +17,7 @@ mutable struct Result
 	EB_zonal::DataFrame
 	CURT::DataFrame
 	Alpha::DataFrame
+	CC_LINE_MARGIN::DataFrame
 	G_RES::DataFrame
 	H_RES::DataFrame
 	COST_G::DataFrame
@@ -53,7 +54,8 @@ mutable struct POMATO
                      :hs, # 1:N.hs to 1:N.he
                      :ph, # 1:N.ph to 1:N.he
                      :alpha, # 1:N.alpha to 1:N.he
-                     :cc_res), # map 1:cc_res to 1:n_res
+                     :cc_res, # map 1:cc_res to 1:n_res
+					 ),
                     Tuple{Vararg{Vector{Int}, 8}}}
 		function POMATO()
 			return new()
@@ -79,7 +81,8 @@ function POMATO(model::Model,
 			 hs = findall(plant -> plant.plant_type in options["plant_types"]["hs"], data.plants[mapping_he]),
 			 ph = findall(plant -> plant.plant_type in options["plant_types"]["ph"], data.plants[mapping_he]),
 			 alpha = findall(plant -> plant.g_max > options["chance_constrained"]["alpha_plants_mw"], data.plants),
-			 cc_res = findall(res_plants -> res_plants.g_max > options["chance_constrained"]["cc_res_mw"], data.renewables))
+			 cc_res = findall(res_plants -> res_plants.g_max > options["chance_constrained"]["cc_res_mw"], data.renewables),
+			 )
 
 	m.n = (t = size(data.t, 1),
 		   zones = size(data.zones, 1),

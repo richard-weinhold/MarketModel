@@ -304,7 +304,7 @@ function add_curtailment_constraints!(pomato::POMATO, zones::Vector{String}, cur
 
 	@variable(model, CURT[1:n.t, res_in_zone] >= 0)
 	@constraint(model, MinCurt[t=1:n.t, res=res_in_zone],
-		CURT[t, res] == curt_market[t, res])
+		CURT[t, res] >= curt_market[t, res])
 	@constraint(model, MaxCurt[t=1:n.t, res=res_in_zone],
 		CURT[t, res] <= G_RES[t, res])
 	for t in 1:n.t

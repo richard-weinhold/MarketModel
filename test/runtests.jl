@@ -4,9 +4,7 @@ include("../src/MarketModel.jl")
 import .MarketModel
 using Test, Logging
 using Clp
-
 ConsoleLogger(stdout, Logging.Info) |> global_logger
-
 # %%
 @testset "All" begin
 	@testset "Basic MarketModel" begin

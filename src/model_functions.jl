@@ -633,8 +633,8 @@ function add_chance_constraints!(pomato::POMATO)
 	@variable(model, F_neg[1:n.t, 1:size(ptdf, 1)] >= 0)
 
 	@constraint(model, [t=1:n.t], ptdf * INJ[t, :] .== F_pos[t, :] .- F_neg[t, :]);
-	@constraint(model, [t=1:n.t], F_pos[t, :]/z .+ CC_LINE_MARGIN_t(t) .<= capacity/z);
-	@constraint(model, [t=1:n.t], F_neg[t, :]/z .+ CC_LINE_MARGIN_t(t) .<= capacity/z);
+	@constraint(model, [t=1:n.t], F_pos[t, :] .+ z*CC_LINE_MARGIN_t(t) .<= capacity);
+	@constraint(model, [t=1:n.t], F_neg[t, :] .+ z*CC_LINE_MARGIN_t(t) .<= capacity);
 end
 
 function redispatch_model!(pomato::POMATO, market_model_results::Dict, redispatch_zones::Vector{String})

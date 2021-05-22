@@ -84,7 +84,7 @@ function market_model(data::Data, options::Dict{String, Any})
 	@info("Solving...")
 	t_start = time_ns()
 	@time JuMP.optimize!(pomato.model)
-	@info("Termination Status: ", JuMP.termination_status(pomato.model))
+	@info("Termination Status: $(JuMP.termination_status(pomato.model))")
 	if JuMP.termination_status(pomato.model) == MOI.INFEASIBLE
 		check_infeasibility(pomato)
 		throw("Model is Infeasible. See stored information from Gurobi constraint conflics.")
@@ -170,7 +170,7 @@ function solve_redispatch_model(data::Data, market_result_variables::Dict{String
 	@info("Solvetime: $(round(t_elapsed*1e-9, digits=2)) seconds")
 
 	if JuMP.termination_status(pomato.model) != MOI.OPTIMAL
-		check_infeasibility(pomato.model)
+		check_infeasibility(pomato)
 	end
 	return pomato
 end

@@ -17,7 +17,9 @@ function add_variables_expressions!(pomato::POMATO)
 
 	@variable(model, EX[1:n.t, 1:n.zones, 1:n.zones] >= 0) # Commercial Exchanges between zones (row from, col to)
 	@variable(model, INJ[1:n.t, 1:n.nodes]) # Net Injection at Node n
-	@variable(model, F_DC[1:n.t, 1:n.dc]) # Flow in DC Line dc
+	@variable(model, F_DC_POS[1:n.t, 1:n.dc] >= 0) # Positive component of  dc line flow
+	@variable(model, F_DC_NEG[1:n.t, 1:n.dc] >= 0) # Negative component of  dc line flow
+	@expression(model, F_DC[t=1:n.t, dc=1:n.dc], F_DC_POS[t, dc] - F_DC_NEG[t, dc]) 
 
 	if options["infeasibility"]["electricity"]["include"]
 		infeasibility_bound = options["infeasibility"]["electricity"]["bound"]
@@ -109,6 +111,8 @@ function add_cost_expressions!(pomato::POMATO)
 	mapping = pomato.mapping
 
 	G, H, EX = model[:G], model[:H], model[:EX]
+	F_DC_POS, F_DC_NEG = model[:F_DC_POS], model[:F_DC_NEG]
+
 	INFEASIBILITY_EL_POS, INFEASIBILITY_EL_NEG = model[:INFEASIBILITY_EL_POS], model[:INFEASIBILITY_EL_NEG]
 	INFEASIBILITY_H_POS, INFEASIBILITY_H_NEG = model[:INFEASIBILITY_H_POS], model[:INFEASIBILITY_H_NEG]
 	@expression(model, COST_G[t=1:n.t],
@@ -129,7 +133,7 @@ function add_cost_expressions!(pomato::POMATO)
 			);
 		end
 	end
-	@expression(model, COST_EX[t=1:n.t], sum(EX[t, :, :])*1e-1);
+	@expression(model, COST_EX[t=1:n.t], sum(EX[t, :, :]) + sum(F_DC_POS[t, :]) + sum(F_DC_NEG[t, :]));
 	@expression(model, COST_INFEASIBILITY_EL[t=1:n.t], (sum(INFEASIBILITY_EL_POS[t, :])
 		+ sum(INFEASIBILITY_EL_NEG[t, :]))*options["infeasibility"]["electricity"]["cost"]);
 	@expression(model, COST_INFEASIBILITY_H[t=1:n.t], (sum(INFEASIBILITY_H_POS[t, :])
@@ -658,13 +662,16 @@ function redispatch_model!(pomato::POMATO, market_model_results::Dict, redispatc
 
 	@variable(model, EX[1:n.t, 1:n.zones, 1:n.zones] >= 0) # Commercial Exchanges between zones (row from, col to)
 	@variable(model, INJ[1:n.t, 1:n.nodes]) # Net Injection at Node n
-	@variable(model, F_DC[1:n.t, 1:n.dc]) # Flow in DC Line dc
+	@variable(model, F_DC_POS[1:n.t, 1:n.dc] >= 0) # Positive component of  dc line flow
+	@variable(model, F_DC_NEG[1:n.t, 1:n.dc] >= 0) # Negative component of  dc line flow
+	@expression(model, F_DC[t=1:n.t, dc=1:n.dc], F_DC_POS[t, dc] - F_DC_NEG[t, dc]) 
+
 
 	@variable(model, 
-		0 <= INFEAS_NEG[1:n.t, redispatch_zones_nodes] <= pomato.options["infeasibility"]["electricity"]["bound"]
+		0 <= INFEAS_NEG[1:n.t, 1:n.nodes] <= pomato.options["infeasibility"]["electricity"]["bound"]
 	);
 	@variable(model, 
-		0 <= INFEAS_POS[1:n.t, redispatch_zones_nodes] <= pomato.options["infeasibility"]["electricity"]["bound"]
+		0 <= INFEAS_POS[1:n.t, 1:n.nodes] <= pomato.options["infeasibility"]["electricity"]["bound"]
 	);
 	#
 	@expression(model, 
@@ -684,12 +691,8 @@ function redispatch_model!(pomato::POMATO, market_model_results::Dict, redispatc
 	);
 
 	for node in 1:n.nodes, t in 1:n.t
-		add_to_expression!(INFEASIBILITY_EL_NEG[t, node], node in redispatch_zones_nodes
-													 ? INFEAS_NEG[t, node] + infeas_neg_market[t, node]
-													 : infeas_neg_market[t, node])
-		add_to_expression!(INFEASIBILITY_EL_POS[t, node], node in redispatch_zones_nodes
-													 ? INFEAS_POS[t, node] + infeas_pos_market[t, node]
-													 : infeas_pos_market[t, node])
+		add_to_expression!(INFEASIBILITY_EL_NEG[t, node], INFEAS_NEG[t, node] + infeas_neg_market[t, node])
+		add_to_expression!(INFEASIBILITY_EL_POS[t, node], INFEAS_POS[t, node] + infeas_pos_market[t, node])
 	end
 
 	@expression(model, 
@@ -762,7 +765,6 @@ function redispatch_model!(pomato::POMATO, market_model_results::Dict, redispatc
 	@constraint(model, [t=1:n.t, p=redispatch_zones_plants],
 		G_redispatch[t, p] - g_market[t, p] == G_redispatch_pos[t, p] - G_redispatch_neg[t, p])
 	
-		# DC Lines Constraints
 	@constraint(model, [t=1:n.t],
 		F_DC[t, :] .<= [data.dc_lines[dc].capacity for dc in 1:n.dc])
 	@constraint(model, [t=1:n.t],

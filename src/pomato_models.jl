@@ -8,7 +8,7 @@ function add_optimizer!(pomato::POMATO)
 	global optimizer_package
 	set_optimizer(pomato.model, optimizer)
 	if string(optimizer_package) == "Gurobi"
-		set_optimizer_attributes(pomato.model, "Method" => 1,
+		set_optimizer_attributes(pomato.model, "Method" => 3,
 								 "Threads" => Threads.nthreads() - 2 < 0 ? 0 : Threads.nthreads() - 2,
 								 "LogFile" => pomato.data.folders["result_dir"]*"/log.txt")
 	end
@@ -49,7 +49,7 @@ function market_model(data::Data, options::Dict{String, Any})
 			@info("Adding FlowBased Constraints...")
 			add_flowbased_constraints!(pomato)
 		end
-		non_fb_region = findall(zone -> !(zone.name in options["grid"]["flowbased_region"]), data.zones)
+		non_fb_region = findall(zone -> !(zone.name in options["fbmc"]["flowbased_region"]), data.zones)
 		if length(non_fb_region) > 0
 			add_ntc_constraints!(pomato, non_fb_region)
 		end

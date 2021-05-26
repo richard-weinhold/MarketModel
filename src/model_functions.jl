@@ -306,13 +306,17 @@ function add_curtailment_constraints!(pomato::POMATO, zones::Vector{String}, cur
 	redispatch_zones_nodes = vcat([data.zones[z].nodes for z in findall(z -> z.name in zones, data.zones)]...)
 	res_in_zone = findall(r -> r.node in redispatch_zones_nodes, data.renewables)
 
-	@variable(model, CURT[1:n.t, res_in_zone] >= 0)
+	@variable(model, CURT_REDISPATCH[1:n.t, res_in_zone] >= 0)
+	@expression(model, CURT[t=1:n.t, res=1:n.res], GenericAffExpr{Float64, VariableRef}(0));
+	for res in 1:n.res, t in 1:n.t
+		add_to_expression!(CURT[t, res], res in res_in_zone ? CURT_REDISPATCH[t, res] : curt_market[t, res])
+	end
 	@constraint(model, MinCurt[t=1:n.t, res=res_in_zone],
 		CURT[t, res] >= curt_market[t, res])
 	@constraint(model, MaxCurt[t=1:n.t, res=res_in_zone],
 		CURT[t, res] <= G_RES[t, res])
 	for t in 1:n.t
-		for res in res_in_zone
+		for res in 1:n.res
 			add_to_expression!(G_RES[t, res],  -CURT[t, res])
 		 	add_to_expression!(RES_Node[t, data.renewables[res].node], -CURT[t, res])
 		 	add_to_expression!(RES_Zone[t, data.nodes[data.renewables[res].node].zone], -CURT[t, res])

@@ -223,6 +223,7 @@ mutable struct Plant
     mc_el::Float64
     mc_heat::Float64
     g_max::Float64
+    d_max::Float64
     h_max::Float64
     eta::Float64
     plant_type::Any

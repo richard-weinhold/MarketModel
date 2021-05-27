@@ -13,7 +13,7 @@ ConsoleLogger(stdout, Logging.Info) |> global_logger
 		result_dir = cd(pwd, "..")*"/examples/results/"
 		result = MarketModel.run_market_model(data_dir, result_dir, optimizer_package, return_result=true)
 		for r in keys(result)
-			obj_market_result = 993555.8332305112
+			obj_market_result = 1.139441150816381e6
 			@test result[r].misc_results["Solve Status"] == MarketModel.MOI.OPTIMAL
 			@test result[r].misc_results["Objective Value"] ≈ obj_market_result rtol=0.01
 		end
@@ -25,7 +25,7 @@ ConsoleLogger(stdout, Logging.Info) |> global_logger
 		result = MarketModel.run_market_model(data_dir, result_dir, optimizer_package,
 			redispatch=true, return_result=true)
 
-		obj_market_result = 993555.8332305112
+		obj_market_result = 1.139441150816381e6
 		@test result["market_results"].misc_results["Objective Value"] ≈ obj_market_result rtol=0.01
 
 		for r in keys(result)

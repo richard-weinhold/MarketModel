@@ -168,7 +168,7 @@ function add_electricity_storage_constraints!(pomato::POMATO)
 		L_es[t, :] .<= [data.plants[mapping.es[es]].storage_capacity for es in 1:n.es])
 
 	@constraint(model, [t=1:n.t],
-		D_es[t, :] .<= [data.plants[mapping.es[es]].g_max for es in 1:n.es])
+		D_es[t, :] .<= [data.plants[mapping.es[es]].d_max for es in 1:n.es])
 
 	# lower bound on storage level in last timestep
 	storage_end(es) = data.plants[mapping.es[es]].storage_end*data.plants[mapping.es[es]].storage_capacity

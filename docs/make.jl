@@ -10,7 +10,7 @@ makedocs(sitename="MarketModel.jl",
     );
 
 deploydocs(
-    repo = "https://github.com/richard-weinhold/MarketModel.git",
+    repo = "github.com/richard-weinhold/MarketModel.git",
     devbranch = "construction"
 )
 

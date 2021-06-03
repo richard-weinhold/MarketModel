@@ -11,6 +11,7 @@ makedocs(sitename="MarketModel.jl",
 
 deploydocs(
     repo = "github.com/richard-weinhold/MarketModel.git",
-    devbranch = "construction"
+    devbranch = "construction",
+    branch = "gh-pages"
 )
 

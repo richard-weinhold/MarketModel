@@ -134,8 +134,23 @@ function add_cost_expressions!(pomato::POMATO)
 		end
 	end
 	@expression(model, COST_EX[t=1:n.t], sum(EX[t, :, :]) + sum(F_DC_POS[t, :]) + sum(F_DC_NEG[t, :]));
-	@expression(model, COST_INFEASIBILITY_EL[t=1:n.t], (sum(INFEASIBILITY_EL_POS[t, :])
-		+ sum(INFEASIBILITY_EL_NEG[t, :]))*options["infeasibility"]["electricity"]["cost"]);
+	
+	capacity_at_node(n) = 
+    	((length(n.plants) > 0 ? sum(data.plants[p].g_max for p in n.plants) : 0 ))
+
+	cap_threshold = quantile([capacity_at_node(n) for n in data.nodes], 0.90)
+	dem_threshold = quantile([sum(n.demand) for n in data.nodes], 0.90)
+
+	high_capacity_nodes = findall(n -> capacity_at_node(n) > cap_threshold, data.nodes)
+	high_demand_nodes = findall(n -> sum(n.demand) > dem_threshold, data.nodes)
+
+	# Prefer nodes with high (90% quantile) installed capacities for positive infeasibility
+	# nodes with high demand for negative infeasibility
+	@expression(model, COST_INFEASIBILITY_EL[t=1:n.t], 
+		(sum(n in high_capacity_nodes ? 0.9*INFEASIBILITY_EL_POS[t, n] : 1.1*INFEASIBILITY_EL_POS[t, n] for n in 1:n.nodes)
+		 + sum(n in high_demand_nodes ? 0.9*INFEASIBILITY_EL_NEG[t, n] : 1.1*INFEASIBILITY_EL_NEG[t, n] for n in 1:n.nodes)
+		 )*options["infeasibility"]["electricity"]["cost"]);
+
 	@expression(model, COST_INFEASIBILITY_H[t=1:n.t], (sum(INFEASIBILITY_H_POS[t, :])
 		+ sum(INFEASIBILITY_H_NEG[t, :]))*options["infeasibility"]["heat"]["cost"]);
 	@expression(model, COST_CURT[t=1:n.t], GenericAffExpr{Float64, VariableRef}(0));
@@ -158,11 +173,12 @@ function add_electricity_storage_constraints!(pomato::POMATO)
 	model, n, mapping, data, options = pomato.model, pomato.n, pomato.mapping, pomato.data, pomato.options
 	D_es, L_es, G = model[:D_es], model[:L_es], model[:G]
 
+	@variable(model, Dump_Water[1:n.t, 1:n.es] >= 0);
 	# Electricity Storage Equations
 	storage_start(es) = data.plants[mapping.es[es]].storage_start*data.plants[mapping.es[es]].storage_capacity
 	@constraint(model, [t=1:n.t, es=1:n.es],
 			L_es[t, es]  == (t>1 ? L_es[t-1, es] : storage_start(es)) + data.plants[mapping.es[es]].inflow[t]  
-			- G[t, mapping.es[es]] + data.plants[mapping.es[es]].eta*D_es[t, es])
+			- G[t, mapping.es[es]] - Dump_Water[t, es] + data.plants[mapping.es[es]].eta*D_es[t, es])
 
 	@constraint(model, [t=1:n.t],
 		L_es[t, :] .<= [data.plants[mapping.es[es]].storage_capacity for es in 1:n.es])

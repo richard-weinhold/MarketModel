@@ -30,6 +30,20 @@ function split_timeseries_segments(data::Data, segment_length::Int)
  	return segments
 end
 
+
+""" 
+run_market_model(data_dir::String, result_dir::String, input_optimizer; return_result::Bool=false,
+                 redispatch::Bool=false)
+
+Solves an economic dispatch problem for given data in `data_dir::String` using the supplied solver
+supplied as `input_optimizer`. Note, input_optimizer has to be the Julia Package itself. Optionally,
+the economic dispatch can be redispatched for feasibility in a given network representation using
+the optional argument `redispatch::Bool`. 
+
+Results are saved as in .csv files into `result_dir::String`. Per default the function returns
+nothing, but the Result struct can be returned with optional argument `return_result::Bool`. 
+
+"""
 function run_market_model(data_dir::String, result_dir::String, input_optimizer;
 						  return_result::Bool=false, redispatch::Bool=false)
 	set_logger()
@@ -57,6 +71,7 @@ end
 
 function run_market_model(data::Data, options::Dict{String, Any}, input_optimizer; 
 						  save::Bool=true)
+
 
 	set_global_optimizer(input_optimizer)	
 	pomato_results = Dict{String, Result}()

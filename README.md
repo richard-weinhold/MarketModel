@@ -1,5 +1,6 @@
-[![PomatoLogo](https://github.com/richard-weinhold/pomato/blob/master/docs/_static/graphics/pomato_logo_small.png "Pomato Soup")](#) MarketModel package for use in POMATO, a Power Market Tool For The Analysis Of Modern Electricity Markets
-=====================================================================================================================================
+<img  height="24" src="https://raw.githubusercontent.com/richard-weinhold/pomato/main/docs/_static/graphics/pomato_logo_small.png"> POMATO - Power Market Tool <img  height="24" src="https://raw.githubusercontent.com/richard-weinhold/pomato/main/docs/_static/graphics/pomato_logo_small.png">
+=========================================================================================================================================================
+
 ![MarketModel](https://github.com/richard-weinhold/MarketModel/workflows/MarketModel/badge.svg)
 
 Overview

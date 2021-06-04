@@ -52,6 +52,24 @@ Exposed function of the MarketModel
 run_market_model
 ```
 
+MarketModel Description
+-----------------------
+
+MarketModel is organized around three main (mutable) structs: 
+   - Data: All input data is storged in Arrays of structs for Zones, Nodes, Lines, DCLines,
+     Contingencies and (RES) Plants. This organization allows immediate parameter access when
+     defining variables and constraints. Data is defined in *data.jl* and instantiated in *data_processing.jl*.
+   - Pomato: The model struct, containing the JuMP model itself together with sets and mappings. The
+     struct is defined in *pomato.jl*, the model definition in *pomato_models.jl* utilizing
+     functions that change a pomato instance inplace from *model_functions.jl*
+   - Results: The values of variables at optimal solution are stored in a separate struct in a
+     predefined structure. The struct and result processing is defined in *results.jl*. 
+
+The model structure works well with the common application where data is read in and market model is  
+is solved in segments over a predefined model horizon. The results of each segment are concatinated
+and potentially redispatched to account for network. 
+
+For the formal definition of the economic dispatch problem see the documentation of [POMATO](https://pomato.readthedocs.io/en/latest/model_formulation.html)
 
 
 Related Publications

@@ -13,7 +13,13 @@ This repository holds these features as a individual julia package for easier ma
 Installation
 ------------
 
-The MarketModel can be cloned and added to you julia projects or just used from the repository. The model requires Julia 1.3 and works with the open Clp solver. As said before it is meant to be using in conjunction with the python [(POMATO)](https://github.com/richard-weinhold/pomato) model, which embeds its features and installs it automatically.
+This package is meant to be used in conjunction with the python
+[POMATO](https://github.com/richard-weinhold/pomato) model, which embeds its features and installs
+it automatically. For stand alone usage see the documentation page. 
+
+[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://richard-weinhold.github.io/MarketModel/stable)
+[![](https://img.shields.io/badge/docs-dev-blue.svg)](https://richard-weinhold.github.io/MarketModel/dev)
+
 
 Related Publications
 --------------------

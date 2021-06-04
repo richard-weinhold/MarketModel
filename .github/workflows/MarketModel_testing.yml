@@ -17,12 +17,12 @@ jobs:
       uses: julia-actions/setup-julia@v1
       with:
         version: ${{ matrix.julia-version }}
-    # - name: Build Package
-    #   uses: julia-actions/julia-buildpkg@latest
-    # - name: Test Package
-    #   uses: julia-actions/julia-runtest@latest
-    # - name: Upload coverage to Codecov
-    #   uses: julia-actions/julia-uploadcodecov@latest
+    - name: Build Package
+      uses: julia-actions/julia-buildpkg@latest
+    - name: Test Package
+      uses: julia-actions/julia-runtest@latest
+    - name: Upload coverage to Codecov
+      uses: julia-actions/julia-uploadcodecov@latest
     - name: Install dependencies Docs
       run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
     - name: Build Docs and deploy

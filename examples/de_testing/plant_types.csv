@@ -1,0 +1,9 @@
+index,es,hs,ts,ph
+other_res,0,0,0,0
+conventional,0,0,0,0
+solar,0,0,1,0
+wind onshore,0,0,1,0
+hydro_res,1,0,0,0
+hydro_ror,0,0,0,0
+hydro_psp,1,0,0,0
+wind offshore,0,0,1,0

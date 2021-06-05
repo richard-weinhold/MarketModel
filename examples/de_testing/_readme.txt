@@ -1,0 +1,2 @@
+This dataset is meant to debug certain functionality of the MarketModel and does not leat to sensible results. 
+It includes dummy plants for heat and follows a zonal PTDF, even though DE is the only zone with network. 

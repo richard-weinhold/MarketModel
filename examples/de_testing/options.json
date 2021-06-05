@@ -1,0 +1,91 @@
+{
+  "title": "default",
+  "type": "zonal",
+  "model_horizon": [
+    0,
+    2
+  ],
+  "heat_model": true,
+  "constrain_nex": false,
+  "timeseries": {
+    "split": true,
+    "market_horizon": 168,
+    "redispatch_horizon": 72
+  },
+  "redispatch": {
+    "include": false,
+    "zonal_redispatch": false,
+    "zones": [
+      "DE",
+      "LU",
+      "FR",
+      "BE",
+      "NL"
+    ],
+    "cost": 50
+  },
+  "curtailment": {
+    "include": true,
+    "cost": 25
+  },
+  "chance_constrained": {
+    "include": false,
+    "fixed_alpha": true,
+    "cc_res_mw": 50,
+    "alpha_plants_mw": 200
+  },
+  "parameters": {
+    "storage_start": 0.65
+  },
+  "infeasibility": {
+    "heat": {
+      "include": false,
+      "cost": 1000.0,
+      "bound": 200
+    },
+    "electricity": {
+      "include": false,
+      "cost": 500,
+      "bound": 1000000.0
+    }
+  },
+  "plant_types": {
+    "es": [
+      "hydro_psp",
+      "hydro_res"
+    ],
+    "hs": ["heat_storage"],
+    "ts": [
+      "wind onshore",
+      "wind offshore",
+      "solar"
+    ],
+    "ph": ["power_to_heat"]
+  },
+  "grid": {
+    "redundancy_removal_option": "full",
+    "precalc_filename": "",
+    "sensitivity": 0.1,
+    "capacity_multiplier": 1,
+    "preprocess": true
+  },
+  "fbmc": {
+    "gsk": "gmax",
+    "minram": 0,
+    "flowbased_region": [
+      "DE",
+      "LU",
+      "FR",
+      "BE",
+      "NL"
+    ],
+    "cne_sensitivity": 0.05,
+    "lodf_sensitivity": 0.05,
+    "frm": 0,
+    "reduce": false,
+    "enforce_ntc_domain": false
+  },
+  "data": {
+    "result_copy": false
+  }
+}

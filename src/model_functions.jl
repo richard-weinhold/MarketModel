@@ -264,13 +264,13 @@ end
 
 function add_heat_generation_constraints!(pomato::POMATO)
 	model, n, mapping, data, options = pomato.model, pomato.n, pomato.mapping, pomato.data, pomato.options
-	chp_efficiency = options["parameters"]["chp_efficiency"]
+	chp_efficiency = ("chp_efficiency" in keys(options["parameters"]) ? options["parameters"]["chp_efficiency"] : 0.1)
 	storage_start = options["parameters"]["storage_start"]
 
 	# make Variable References Available
 	G, H = model[:G], model[:H]
-	D_hs = model[:D_hs]
-	L_hs = model[:L_es]
+	D_hs, D_ph = model[:D_hs], model[:D_ph]
+	L_hs = model[:L_hs]
 	INFEASIBILITY_H_POS = model[:INFEASIBILITY_H_POS]
 	INFEASIBILITY_H_NEG = model[:INFEASIBILITY_H_NEG]
 	# make Expression References Available
@@ -448,9 +448,8 @@ function add_flowbased_constraints!(pomato::POMATO)
 		@info("Adding zonal PTDF")
 		zonal_ptdf = vcat([contingency.ptdf for contingency in data.contingencies]...)
 		ram = vcat([contingency.ram for contingency in data.contingencies]...)
-		nex = sum(EX[t, :, zz] - EX[t, zz, :] for zz in 1:n.zones)
-		@constraint(model, [t=1:n.t], zonal_ptdf * nex .<= ram);
-		@constraint(model, [t=1:n.t], -zonal_ptdf * nex .<= ram);
+		@constraint(model, [t=1:n.t], zonal_ptdf * sum(EX[t, :, zz] - EX[t, zz, :] for zz in 1:n.zones) .<= ram);
+		@constraint(model, [t=1:n.t], -zonal_ptdf * sum(EX[t, :, zz] - EX[t, zz, :] for zz in 1:n.zones) .<= ram);
 	end
 end
 

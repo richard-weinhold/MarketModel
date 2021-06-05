@@ -448,8 +448,11 @@ function add_flowbased_constraints!(pomato::POMATO)
 		@info("Adding zonal PTDF")
 		zonal_ptdf = vcat([contingency.ptdf for contingency in data.contingencies]...)
 		ram = vcat([contingency.ram for contingency in data.contingencies]...)
-		@constraint(model, [t=1:n.t], zonal_ptdf * sum(EX[t, :, zz] - EX[t, zz, :] for zz in 1:n.zones) .<= ram);
-		@constraint(model, [t=1:n.t], -zonal_ptdf * sum(EX[t, :, zz] - EX[t, zz, :] for zz in 1:n.zones) .<= ram);
+		for t in 1:n.t
+			nex = sum(EX[t, :, zz] - EX[t, zz, :] for zz in 1:n.zones)
+			@constraint(model, zonal_ptdf * nex .<= ram);
+			@constraint(model, -zonal_ptdf * nex .<= ram);
+		end
 	end
 end
 

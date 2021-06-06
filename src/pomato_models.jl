@@ -1,6 +1,14 @@
 """
-asd
+POMATO - Power Market Tool (C) 2021
+Current Version: 0.4
+Created by Richard Weinhold and Robert Mieth
+Licensed under LGPL v3
 
+Language: Julia, v1.5
+----------------------------------
+
+This file:
+Definition of the models defined by input data and user options. 
 """
 
 function add_optimizer!(pomato::POMATO)

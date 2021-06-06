@@ -1,4 +1,17 @@
 
+"""
+POMATO - Power Market Tool (C) 2021
+Current Version: 0.4
+Created by Richard Weinhold and Robert Mieth
+Licensed under LGPL v3
+
+Language: Julia, v1.5
+----------------------------------
+
+This file:
+Definition of functions that add JuMP variables, expression and constraints to pomato model. 
+
+"""
 
 function add_variables_expressions!(pomato::POMATO)
 	model = pomato.model

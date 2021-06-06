@@ -1,4 +1,15 @@
-"""Data input processing"""
+"""
+POMATO - Power Market Tool (C) 2021
+Current Version: 0.4
+Created by Richard Weinhold and Robert Mieth
+Licensed under LGPL v3
+
+Language: Julia, v1.5
+----------------------------------
+
+This file:
+Processing of input data and populating data structs.
+"""
 
 function read_model_data(data_dir::String)
     @info("Reading Model Data from: $(data_dir)")

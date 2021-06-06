@@ -1,4 +1,16 @@
-""" Run the models, defined in create_model.jl"""
+"""
+POMATO - Power Market Tool (C) 2021
+Current Version: 0.4
+Created by Richard Weinhold and Robert Mieth
+Licensed under LGPL v3
+
+Language: Julia, v1.5
+----------------------------------
+
+This file:
+Upper level functions to run the models. These are the functions exposed by MarketModel.
+"""
+
 
 function set_logger()
 	# global_logger(ConsoleLogger(stdout, Logging.Info))

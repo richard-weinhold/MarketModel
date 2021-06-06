@@ -1,17 +1,15 @@
-# -------------------------------------------------------------------------------------------------
-# POMATO - Power Market Tool (C) 2018
-# Current Version: Pre-Release-2018
-# Created by Robert Mieth and Richard Weinhold
-# Licensed under LGPL v3
-#
-# Language: Julia, v1.1.0 (required)
-# ----------------------------------
-#
-# This file:
-# Julia mutable struct definitions for efficient data handling
-# -------------------------------------------------------------------------------------------------
+"""
+POMATO - Power Market Tool (C) 2021
+Current Version: 0.4
+Created by Richard Weinhold and Robert Mieth
+Licensed under LGPL v3
 
+Language: Julia, v1.5
+----------------------------------
 
+This file:
+Definition of data structs data handling
+"""
 
 mutable struct Line
     # Attributes

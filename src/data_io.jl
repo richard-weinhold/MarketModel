@@ -1,3 +1,16 @@
+"""
+POMATO - Power Market Tool (C) 2021
+Current Version: 0.4
+Created by Richard Weinhold and Robert Mieth
+Licensed under LGPL v3
+
+Language: Julia, v1.5
+----------------------------------
+
+This file:
+Reading in data as RAW struct. 
+"""
+
 mutable struct RAW
     options::Dict{String, Any}
     model_horizon::DataFrame

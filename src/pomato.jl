@@ -1,3 +1,16 @@
+"""
+POMATO - Power Market Tool (C) 2021
+Current Version: 0.4
+Created by Richard Weinhold and Robert Mieth
+Licensed under LGPL v3
+
+Language: Julia, v1.5
+----------------------------------
+
+This file:
+Definition of the POMATO and Result struct that house and facilitate the model process.
+"""
+
 mutable struct Result
 	G::DataFrame
 	H::DataFrame
@@ -103,22 +116,3 @@ function POMATO(model::Model,
 	return m
 end
 
-function check_infeasibility(pomato::POMATO)
-	global optimizer
-	if string(optimizer) == "Gurobi.Optimizer"
-		global optimizer_package
-		model = pomato.model
-		MOI.compute_conflict!(model.moi_backend.optimizer.model)
-		for constraint_types in list_of_constraint_types(model)
-			out = filter(x -> MOI.ConflictParticipationStatusCode(0) != 
-								MOI.get(model.moi_backend, MOI.ConstraintConflictStatus(), x.index), 
-							MarketModel.all_constraints(model, constraint_types[1], constraint_types[2]));
-			
-			constraint_identifier = join(constraint_types, "_")
-			@warn("$(length(out)) constraints in conflic of type $constraint_identifier")
-			CSV.write(pomato.data.folders["result_dir"]*"/"*constraint_identifier*".csv", 
-						DataFrame([out[i] for i in axes(out)]))
-		end
-		@warn("Saved all constraints in conflict to $(pomato.data.folders["result_dir"]).")
-	end
-end

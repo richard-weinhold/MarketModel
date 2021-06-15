@@ -100,7 +100,7 @@ function market_model(data::Data, options::Dict{String, Any})
 		@info("Termination Status not optimal, check solution for feasibility.")
 	end
 	@info("Objective: $(JuMP.objective_value(pomato.model))")
-	@info("Objective: $(JuMP.termination_status(pomato.model))")
+	@info("Optimization Status: $(JuMP.termination_status(pomato.model))")
 	t_elapsed = time_ns() - t_start
 	@info("Solvetime: $(round(t_elapsed*1e-9, digits=2)) seconds")
 	add_result!(pomato)

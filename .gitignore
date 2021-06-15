@@ -1,6 +1,6 @@
 examples/results/
 test/test_env/
-test/local_testing.jl
+*local*
 .vscode/launch.json
 .vscode/settings.json
-test/local_testing*.jl
+docs/build

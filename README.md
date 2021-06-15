@@ -1,6 +1,13 @@
-[![PomatoLogo](https://github.com/richard-weinhold/pomato/blob/master/docs/_static/graphics/pomato_logo_small.png "Pomato Soup")](#) MarketModel package for use in POMATO, a Power Market Tool For The Analysis Of Modern Electricity Markets
-=====================================================================================================================================
-![MarketModel](https://github.com/richard-weinhold/MarketModel/workflows/MarketModel/badge.svg)
+
+<img  height="24" src="https://raw.githubusercontent.com/richard-weinhold/pomato/main/docs/_static/graphics/pomato_logo_small.png"> POMATO - Power Market Tool <img  height="24" src="https://raw.githubusercontent.com/richard-weinhold/pomato/main/docs/_static/graphics/pomato_logo_small.png">
+=========================================================================================================================================================
+
+Main Branch: ![MarketModel](https://github.com/richard-weinhold/MarketModel/workflows/MarketModel/badge.svg)
+![codecov](https://codecov.io/gh/richard-weinhold/MarketModel/branch/master/graph/badge.svg?token=qUK3at8Am2)
+
+Construction Branch: 
+![MarketModel](https://github.com/richard-weinhold/MarketModel/actions/workflows/MarketModel_testing.yml/badge.svg?branch=construction)
+![codecov](https://codecov.io/gh/richard-weinhold/MarketModel/branch/construction/graph/badge.svg?token=qUK3at8Am2)
 
 Overview
 --------
@@ -12,7 +19,13 @@ This repository holds these features as a individual julia package for easier ma
 Installation
 ------------
 
-The MarketModel can be cloned and added to you julia projects or just used from the repository. The model requires Julia 1.3 and works with the open Clp solver. As said before it is meant to be using in conjunction with the python [(POMATO)](https://github.com/richard-weinhold/pomato) model, which embeds its features and installs it automatically.
+This package is meant to be used in conjunction with the python
+[POMATO](https://github.com/richard-weinhold/pomato) model, which embeds its features and installs
+it automatically. For stand alone usage see the documentation page. 
+
+[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://richard-weinhold.github.io/MarketModel/stable)
+[![](https://img.shields.io/badge/docs-dev-blue.svg)](https://richard-weinhold.github.io/MarketModel/dev)
+
 
 Related Publications
 --------------------

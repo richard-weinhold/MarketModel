@@ -1,0 +1,2 @@
+ignore:
+  - "src/gurobi_functions.jl" # Ignore Gurobi specific functionality which cannot be tested. 

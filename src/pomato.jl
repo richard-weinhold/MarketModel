@@ -1,3 +1,16 @@
+"""
+POMATO - Power Market Tool (C) 2021
+Current Version: 0.4
+Created by Richard Weinhold and Robert Mieth
+Licensed under LGPL v3
+
+Language: Julia, v1.5
+----------------------------------
+
+This file:
+Definition of the POMATO and Result struct that house and facilitate the model process.
+"""
+
 mutable struct Result
 	G::DataFrame
 	H::DataFrame
@@ -9,16 +22,24 @@ mutable struct Result
 	D_hs::DataFrame
 	L_hs::DataFrame
 	D_ph::DataFrame
-	INFEAS_H_POS::DataFrame
-	INFEAS_H_NEG::DataFrame
-	INFEAS_EL_N_POS::DataFrame
-	INFEAS_EL_N_NEG::DataFrame
+	INFEASIBILITY_H_POS::DataFrame
+	INFEASIBILITY_H_NEG::DataFrame
+	INFEASIBILITY_EL_POS::DataFrame
+	INFEASIBILITY_EL_NEG::DataFrame
 	EB_nodal::DataFrame
 	EB_zonal::DataFrame
 	CURT::DataFrame
 	Alpha::DataFrame
+	CC_LINE_MARGIN::DataFrame
 	G_RES::DataFrame
 	H_RES::DataFrame
+	COST_G::DataFrame
+	COST_H::DataFrame
+	COST_EX::DataFrame
+	COST_CURT::DataFrame
+	COST_REDISPATCH::DataFrame
+	COST_INFEASIBILITY_EL::DataFrame
+	COST_INFEASIBILITY_H::DataFrame
 	misc_results::Dict
 	function Result()
 		return new()
@@ -46,7 +67,8 @@ mutable struct POMATO
                      :hs, # 1:N.hs to 1:N.he
                      :ph, # 1:N.ph to 1:N.he
                      :alpha, # 1:N.alpha to 1:N.he
-                     :cc_res), # map 1:cc_res to 1:n_res
+                     :cc_res, # map 1:cc_res to 1:n_res
+					 ),
                     Tuple{Vararg{Vector{Int}, 8}}}
 		function POMATO()
 			return new()
@@ -72,7 +94,8 @@ function POMATO(model::Model,
 			 hs = findall(plant -> plant.plant_type in options["plant_types"]["hs"], data.plants[mapping_he]),
 			 ph = findall(plant -> plant.plant_type in options["plant_types"]["ph"], data.plants[mapping_he]),
 			 alpha = findall(plant -> plant.g_max > options["chance_constrained"]["alpha_plants_mw"], data.plants),
-			 cc_res = findall(res_plants -> res_plants.g_max > options["chance_constrained"]["cc_res_mw"], data.renewables))
+			 cc_res = findall(res_plants -> res_plants.g_max > options["chance_constrained"]["cc_res_mw"], data.renewables),
+			 )
 
 	m.n = (t = size(data.t, 1),
 		   zones = size(data.zones, 1),
@@ -93,15 +116,3 @@ function POMATO(model::Model,
 	return m
 end
 
-function check_infeasibility(model::Model)
-	global optimizer
-	if string(optimizer) == "Gurobi.Optimizer"
-		global optimizer_package
-		optimizer_package.compute_conflict(model.moi_backend.optimizer.model)
-		for constraint_types in list_of_constraint_types(model)
-			out = filter(x -> MOI.get(model.moi_backend, optimizer_package.ConstraintConflictStatus(), x.index),
-				 	     all_constraints(model, constraint_types[1], constraint_types[2]))
-			@warn(out)
-		end
-	end
-end

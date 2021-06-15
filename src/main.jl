@@ -1,4 +1,16 @@
-""" Run the models, defined in create_model.jl"""
+"""
+POMATO - Power Market Tool (C) 2021
+Current Version: 0.4
+Created by Richard Weinhold and Robert Mieth
+Licensed under LGPL v3
+
+Language: Julia, v1.5
+----------------------------------
+
+This file:
+Upper level functions to run the models. These are the functions exposed by MarketModel.
+"""
+
 
 function set_logger()
 	# global_logger(ConsoleLogger(stdout, Logging.Info))
@@ -10,6 +22,11 @@ function set_logger()
 		TeeLogger(ConsoleLogger(stdout, Logging.Info)) |> global_logger
 		@info("No logfile Found, logging only to console.")
 	end
+end
+
+function set_global_optimizer(input_optimizer)
+	global optimizer = input_optimizer.Optimizer
+	global optimizer_package = input_optimizer
 end
 
 function split_timeseries_segments(data::Data, segment_length::Int)
@@ -25,6 +42,23 @@ function split_timeseries_segments(data::Data, segment_length::Int)
  	return segments
 end
 
+
+""" 
+	run_market_model(data_dir::String, 
+					 result_dir::String, 
+					 input_optimizer; 
+					 return_result::Bool=false,
+                 	 redispatch::Bool=false)
+
+Solves an economic dispatch problem for given data in `data_dir::String` using the supplied solver
+supplied as `input_optimizer`. Note, input_optimizer has to be the Julia Package itself. Optionally,
+the economic dispatch can be redispatched for feasibility in a given network representation using
+the optional argument `redispatch::Bool`. 
+
+Results are saved as in .csv files into `result_dir::String`. Per default the function returns
+nothing, but the Result struct can be returned with optional argument `return_result::Bool`. 
+
+"""
 function run_market_model(data_dir::String, result_dir::String, input_optimizer;
 						  return_result::Bool=false, redispatch::Bool=false)
 	set_logger()
@@ -53,13 +87,13 @@ end
 function run_market_model(data::Data, options::Dict{String, Any}, input_optimizer; 
 						  save::Bool=true)
 
-	global optimizer = input_optimizer.Optimizer
-	global optimizer_package = input_optimizer
+
+	set_global_optimizer(input_optimizer)	
 	pomato_results = Dict{String, Result}()
 	if options["timeseries"]["split"]
 		data_full = deepcopy(data)
 		model_horizon_segments = split_timeseries_segments(data_full, options["timeseries"]["market_horizon"])
-		for (i,timesteps) in enumerate(model_horizon_segments)
+		for (i, timesteps) in enumerate(model_horizon_segments)
 			data = deepcopy(data_full)
 			data.t = data.t[timesteps]
 			set_model_horizon!(data, i)
@@ -75,15 +109,16 @@ function run_market_model(data::Data, options::Dict{String, Any}, input_optimize
 	return pomato_results
 end
 
-function run_market_model_redispatch(data::Data, options::Dict{String, Any}, input_optimizer)
+function run_market_model_redispatch(data::Data, options::Dict{String, Any}, input_optimizer; 
+									 save::Bool=true)
 
-	global optimizer = input_optimizer.Optimizer
-	global optimizer_package = input_optimizer
-
+	set_global_optimizer(input_optimizer)
 	market_result = concat_results(run_market_model(data, options, input_optimizer, save=false))
 	redispatch_results = redispatch_model(market_result, data, options)
-	for result in keys(redispatch_results)
-		save_result(redispatch_results[result], data.folders["result_dir"]*"_"*result)
+	if save
+		for result in keys(redispatch_results)
+			save_result(redispatch_results[result], data.folders["result_dir"]*"_"*result)
+		end
 	end
 	@info("Everything Done!")
 	return redispatch_results

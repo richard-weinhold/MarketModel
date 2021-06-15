@@ -1,0 +1,56 @@
+index,node_i,node_j,capacity
+dc6933,n4627,n4813,1000.0
+dc11531,n5525,n5545,1000.0
+dc542,n5572,n5688,1000.0
+NordLink,n6203,n5668,1400.0
+ALEGrO,n4813,n4627,1000.0
+HVDC SuedOstLink,n4506,n3319,2000.0
+Hansa PowerBridge I,n5574,n5546,700.0
+HVDC SuedLink,n5668,n4852,4000.0
+HVDC Ultranet,n4637,n4616,600.0
+dcLU_n4793,nLU,n4793,100000.0
+dcLU_n4798,nLU,n4798,100000.0
+dcLU_n4799,nLU,n4799,100000.0
+dcLU_n4800,nLU,n4800,100000.0
+dcSE_n5572,nSE,n5572,100000.0
+dcSE_n5574,nSE,n5574,100000.0
+dcAT_n3348,nAT,n3348,100000.0
+dcAT_n3512,nAT,n3512,100000.0
+dcAT_n3520,nAT,n3520,100000.0
+dcBE_n4813,nBE,n4813,100000.0
+dcCZ_n4494,nCZ,n4494,100000.0
+dcCZ_n7961,nCZ,n7961,100000.0
+dcDK_n5525,nDK,n5525,100000.0
+dcDK_n5588,nDK,n5588,100000.0
+dcDK_n5602,nDK,n5602,100000.0
+dcDK_n5606,nDK,n5606,100000.0
+dcDK_n7729,nDK,n7729,100000.0
+dcFR_n3581,nFR,n3581,100000.0
+dcFR_n3587,nFR,n3587,100000.0
+dcFR_n3610,nFR,n3610,100000.0
+dcFR_n4825,nFR,n4825,100000.0
+dcFR_n4826,nFR,n4826,100000.0
+dcNL_n4836,nNL,n4836,100000.0
+dcNL_n4839,nNL,n4839,100000.0
+dcNL_n4842,nNL,n4842,100000.0
+dcNL_n5702,nNL,n5702,100000.0
+dcNO_n6203,nNO,n6203,100000.0
+dcPL_n4569,nPL,n4569,100000.0
+dcPL_n5559,nPL,n5559,100000.0
+dcCH_n3735,nCH,n3735,100000.0
+dcCH_n3739,nCH,n3739,100000.0
+dcCH_n3827,nCH,n3827,100000.0
+dcnBEL_north_sea_1,nBE,nBEL_north_sea_1,100000.0
+dcnDNK_baltic_sea_1,nDK,nDNK_baltic_sea_1,100000.0
+dcnDNK_north_sea_1,nDK,nDNK_north_sea_1,100000.0
+dcnFRA_north_sea_1,nFR,nFRA_north_sea_1,100000.0
+dcnFRA_atlantic_1,nFR,nFRA_atlantic_1,100000.0
+dcnFRA_mediterranean_sea_1,nFR,nFRA_mediterranean_sea_1,100000.0
+dcnDEU_north_sea_1_n5665,n5665,nDEU_north_sea_1,100000.0
+dcnDEU_north_sea_1_n5650,n5650,nDEU_north_sea_1,100000.0
+dcnDEU_north_sea_1_n5733,n5733,nDEU_north_sea_1,100000.0
+dcnDEU_baltic_sea_1_n5551,n5551,nDEU_baltic_sea_1,100000.0
+dcnDEU_baltic_sea_1_n5545,n5545,nDEU_baltic_sea_1,100000.0
+dcnNLD_north_sea_1,nNL,nNLD_north_sea_1,100000.0
+dcnSWE_north_sea_1,nSE,nSWE_north_sea_1,100000.0
+dcnSWE_baltic_sea_1,nSE,nSWE_baltic_sea_1,100000.0

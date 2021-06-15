@@ -1,17 +1,15 @@
-# -------------------------------------------------------------------------------------------------
-# POMATO - Power Market Tool (C) 2018
-# Current Version: Pre-Release-2018
-# Created by Robert Mieth and Richard Weinhold
-# Licensed under LGPL v3
-#
-# Language: Julia, v1.1.0 (required)
-# ----------------------------------
-#
-# This file:
-# Julia mutable struct definitions for efficient data handling
-# -------------------------------------------------------------------------------------------------
+"""
+POMATO - Power Market Tool (C) 2021
+Current Version: 0.4
+Created by Richard Weinhold and Robert Mieth
+Licensed under LGPL v3
 
+Language: Julia, v1.5
+----------------------------------
 
+This file:
+Definition of data structs data handling
+"""
 
 mutable struct Line
     # Attributes
@@ -196,7 +194,7 @@ mutable struct Renewables
             res.node = node
             res.plant_type = plant_type
 
-            res.sigma_factor =  0.3
+            res.sigma_factor =  0.2
             
             res.mu_rt = availability_rt * g_max
             res.sigma_rt = res.mu_rt * res.sigma_factor
@@ -223,6 +221,7 @@ mutable struct Plant
     mc_el::Float64
     mc_heat::Float64
     g_max::Float64
+    d_max::Float64
     h_max::Float64
     eta::Float64
     plant_type::Any
@@ -262,18 +261,18 @@ mutable struct DC_Line
     name::Any
     node_i::Int
     node_j::Int
-    maxflow::Float64
+    capacity::Float64
     function DC_Line(index::Int,
                      name::Any,
                      node_i::Int,
                      node_j::Int,
-                     maxflow::Float64)
+                     capacity::Float64)
         l = new()
         l.index = index
         l.name = name
         l.node_i = node_i
         l.node_j = node_j
-        l.maxflow = maxflow
+        l.capacity = capacity
         return l
     end
 end

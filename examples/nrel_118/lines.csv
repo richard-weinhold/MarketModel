@@ -1,4 +1,4 @@
-index,node_i,node_j,b,maxflow,contingency
+index,node_i,node_j,x_pu,capacity,contingency
 line001,bus001,bus002,0.05256253943504522,600,True
 line002,bus001,bus003,0.12384428513115607,600,True
 line003,bus004,bus005,0.6580197605966186,1700,True

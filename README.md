@@ -2,12 +2,12 @@
 <img  height="24" src="https://raw.githubusercontent.com/richard-weinhold/pomato/main/docs/_static/graphics/pomato_logo_small.png"> POMATO - Power Market Tool <img  height="24" src="https://raw.githubusercontent.com/richard-weinhold/pomato/main/docs/_static/graphics/pomato_logo_small.png">
 =========================================================================================================================================================
 
-Main Branch: ![MarketModel](https://github.com/richard-weinhold/MarketModel/workflows/MarketModel/badge.svg)
-![codecov](https://codecov.io/gh/richard-weinhold/MarketModel/branch/master/graph/badge.svg?token=qUK3at8Am2)
+Main Branch: ![MarketModel](https://github.com/richard-weinhold/MarketModel/actions/workflows/MarketModel_testing.yml/badge.svg?branch=main)
+![codecov](https://codecov.io/gh/richard-weinhold/MarketModel/branch/main/graph/badge.svg)
 
 Construction Branch: 
 ![MarketModel](https://github.com/richard-weinhold/MarketModel/actions/workflows/MarketModel_testing.yml/badge.svg?branch=construction)
-![codecov](https://codecov.io/gh/richard-weinhold/MarketModel/branch/construction/graph/badge.svg?token=qUK3at8Am2)
+![codecov](https://codecov.io/gh/richard-weinhold/MarketModel/branch/construction/graph/badge.svg)
 
 Overview
 --------

@@ -2,7 +2,7 @@
 name: MarketModel
 on:
   push:
-    branches: [ master, construction ]
+    branches: [ main, construction ]
 
 jobs:
   build:

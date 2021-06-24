@@ -9,6 +9,7 @@
   "constrain_nex": false,
   "timeseries": {
     "split": true,
+    "type": "rt",
     "market_horizon": 168,
     "redispatch_horizon": 72
   },

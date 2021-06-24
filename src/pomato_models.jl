@@ -26,6 +26,10 @@ function market_model(data::Data, options::Dict{String, Any})
 
 	pomato = POMATO(Model(), data, options)
 
+	if options["timeseries"]["type"] == "da"
+		set_da_timeseries!(data)
+	end
+
 	add_optimizer!(pomato)
 
 	@info("Adding Variables and Expressions..")
@@ -110,10 +114,7 @@ end
 
 function redispatch_model(market_result::Result, data::Data, options::Dict{String, Any})
 
-	# set_rt_timeseries!(data)
-	# pomato = market_model(data, options)
-	# set_rt_timeseries!(pomato.data)
-
+	set_rt_timeseries!(data)
 	redispatch_results = Dict{String, Result}()
 	redispatch_results["market_results"] = market_result
 

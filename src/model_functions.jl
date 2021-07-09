@@ -167,6 +167,7 @@ function add_cost_expressions!(pomato::POMATO)
 	@expression(model, COST_INFEASIBILITY_H[t=1:n.t], (sum(INFEASIBILITY_H_POS[t, :])
 		+ sum(INFEASIBILITY_H_NEG[t, :]))*options["infeasibility"]["heat"]["cost"]);
 	@expression(model, COST_CURT[t=1:n.t], GenericAffExpr{Float64, VariableRef}(0));
+	@expression(model, COST_INFEASIBILITY_ES[t=1:n.t], GenericAffExpr{Float64, VariableRef}(0));
 	@expression(model, COST_REDISPATCH[t=1:n.t], GenericAffExpr{Float64, VariableRef}(0));
 end
 
@@ -175,7 +176,7 @@ function add_objective!(pomato::POMATO)
 	# Objective Function based on Cost Expressions
 	@objective(model, Min, sum(model[:COST_G]) + sum(model[:COST_H]) + sum(model[:COST_EX])
 						   + sum(model[:COST_INFEASIBILITY_EL]) + sum(model[:COST_INFEASIBILITY_H])
-						   + sum(model[:COST_CURT]) + sum(model[:COST_REDISPATCH]));
+						   + sum(model[:COST_CURT]) + sum(model[:COST_REDISPATCH]) + sum(model[:COST_INFEASIBILITY_ES]));
 end
 
 function add_result!(pomato::POMATO)
@@ -185,13 +186,15 @@ end
 function add_electricity_storage_constraints!(pomato::POMATO)
 	model, n, mapping, data, options = pomato.model, pomato.n, pomato.mapping, pomato.data, pomato.options
 	D_es, L_es, G = model[:D_es], model[:L_es], model[:G]
+	COST_INFEASIBILITY_ES = model[:COST_INFEASIBILITY_ES]
 
 	@variable(model, Dump_Water[1:n.t, 1:n.es] >= 0);
+	@variable(model, INFEASIBILITY_ES[1:n.t, 1:n.es] >= 0);
 	# Electricity Storage Equations
 	storage_start(es) = data.plants[mapping.es[es]].storage_start*data.plants[mapping.es[es]].storage_capacity
 	@constraint(model, [t=1:n.t, es=1:n.es],
 			L_es[t, es]  == (t>1 ? L_es[t-1, es] : storage_start(es)) + data.plants[mapping.es[es]].inflow[t]  
-			- G[t, mapping.es[es]] - Dump_Water[t, es] + data.plants[mapping.es[es]].eta*D_es[t, es])
+			- G[t, mapping.es[es]] - Dump_Water[t, es] + INFEASIBILITY_ES[t, es] + data.plants[mapping.es[es]].eta*D_es[t, es])
 
 	@constraint(model, [t=1:n.t],
 		L_es[t, :] .<= [data.plants[mapping.es[es]].storage_capacity for es in 1:n.es])
@@ -202,6 +205,10 @@ function add_electricity_storage_constraints!(pomato::POMATO)
 	# lower bound on storage level in last timestep
 	storage_end(es) = data.plants[mapping.es[es]].storage_end*data.plants[mapping.es[es]].storage_capacity
 	@constraint(model, L_es[n.t, :] .>= [storage_end(es) for es in 1:n.es]);
+
+	for t in 1:n.t
+		add_to_expression!(COST_INFEASIBILITY_ES[t],  sum(INFEASIBILITY_ES[t, :])*1000.0);
+	end
 end
 
 function add_electricity_generation_constraints!(pomato::POMATO)
@@ -340,8 +347,8 @@ function add_curtailment_constraints!(pomato::POMATO, zones::Vector{String}, cur
 	for res in 1:n.res, t in 1:n.t
 		add_to_expression!(CURT[t, res], res in res_in_zone ? CURT_REDISPATCH[t, res] : curt_market[t, res])
 	end
-	# @constraint(model, MinCurt[t=1:n.t, res=res_in_zone],
-	# 	CURT[t, res] >= curt_market[t, res])
+	@constraint(model, MinCurt[t=1:n.t, res=res_in_zone],
+		CURT[t, res] >= curt_market[t, res])
 	@constraint(model, MaxCurt[t=1:n.t, res=res_in_zone],
 		CURT[t, res] <= G_RES[t, res])
 	for t in 1:n.t
@@ -489,6 +496,7 @@ function add_chance_constrained_flowbased_constraints!(pomato::POMATO)
 	S = [sqrt(sum(Epsilon[t])) for t in 1:n.t];
 
 	alpha_plants(node) = findall(x -> x in intersect(mapping.alpha, data.nodes[node].plants), mapping.alpha);
+	
 	if options["chance_constrained"]["fixed_alpha"]
 		@expression(model, Alpha[t=1:n.t, alpha=1:n.alpha],
 				data.plants[mapping.alpha[alpha]].g_max/(sum(pp.g_max for pp in data.plants[mapping.alpha])));
@@ -518,7 +526,20 @@ function add_chance_constrained_flowbased_constraints!(pomato::POMATO)
 	@variable(model, 
 		CC_LINE_MARGIN[t=1:n.t, co=contingency_idx_t(t), cb=1:length(data.contingencies[co].lines)] >= 0
 	);
+	@variable(model, 
+		INFEASIBILITY_CC_LINES[t=1:n.t, co=contingency_idx_t(t), cb=1:length(data.contingencies[co].lines)] >= 0
+	);
+	
+	COST_INF = model[:COST_INFEASIBILITY_EL]
+	cost_inf = pomato.options["infeasibility"]["electricity"]["cost"]
+	for t in 1:n.t
+		for co in contingency_idx_t(t)
+			add_to_expression!(COST_INF[t], sum(INFEASIBILITY_CC_LINES[t, co, cb]*cost_inf for cb in 1:length(data.contingencies[co].lines)))
+		end
+	end
+
 	CC_LINE_MARGIN_t(t) = [CC_LINE_MARGIN[t, co, cb] for co in contingency_idx_t(t) for cb in 1:length(data.contingencies[co].lines)]
+	INFEASIBILITY_CC_LINES_t(t) = [INFEASIBILITY_CC_LINES[t, co, cb] for co in contingency_idx_t(t) for cb in 1:length(data.contingencies[co].lines)]
 
 	EX = model[:EX]
 	for t in 1:n.t
@@ -530,7 +551,7 @@ function add_chance_constrained_flowbased_constraints!(pomato::POMATO)
 			vec(vcat(CC_LINE_MARGIN_t(t)[cb], (alpha_loadflow[cb, :]'*Epsilon_root[t])')) in SecondOrderCone()
 		);
 		@constraint(model, 
-			Array(ptdf * sum(EX[t, :, zz] - EX[t, zz, :] for zz in 1:n.zones)/z .+ CC_LINE_MARGIN_t(t)) .<= ram/z
+			Array(ptdf * sum(EX[t, :, zz] - EX[t, zz, :] for zz in 1:n.zones) .+ CC_LINE_MARGIN_t(t)*z) .<= ram + INFEASIBILITY_CC_LINES_t(t)
 		);
 	end
 end
@@ -812,6 +833,12 @@ function redispatch_model!(pomato::POMATO, market_model_results::Dict, redispatc
 	redispatch_zones_idx = map(name -> findfirst(zone -> zone.name == name, data.zones), redispatch_zones)  
 	redispatch_line_subset = findall(line -> (line.zone_i in redispatch_zones_idx)&(line.zone_j in redispatch_zones_idx), data.lines)
 	@info("$(length(redispatch_line_subset)) lines part of the redispatch network")
-	add_dclf_angle_constraints!(pomato, redispatch_line_subset)
+	if pomato.options["grid"]["include_contingencies_redispatch"]
+		@info("Adding power flow constraints using the PTDF formulation.")
+		add_dclf_ptdf_constraints!(pomato)
+	else
+		@info("Adding power flow constraints using the angle formulation.")
+		add_dclf_angle_constraints!(pomato, redispatch_line_subset)
+	end
 	add_objective!(pomato);
 end

@@ -194,7 +194,7 @@ mutable struct Renewables
             res.node = node
             res.plant_type = plant_type
 
-            res.sigma_factor =  0.15
+            res.sigma_factor =  0.1
             
             res.mu_rt = availability_rt * g_max
             res.sigma_rt = res.mu_rt * res.sigma_factor

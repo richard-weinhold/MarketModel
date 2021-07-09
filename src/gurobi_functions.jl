@@ -15,6 +15,7 @@ check_infeasibility allows to identify constraints that cause infeasibility when
 
 function check_infeasibility(pomato::POMATO)
 	global optimizer
+	@info("Using Gurobi compute_conflict to find reason for infeasibility.")
 	if string(optimizer) == "Gurobi.Optimizer"
 		global optimizer_package
 		model = pomato.model

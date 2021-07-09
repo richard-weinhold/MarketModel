@@ -26,11 +26,13 @@ mutable struct Result
 	INFEASIBILITY_H_NEG::DataFrame
 	INFEASIBILITY_EL_POS::DataFrame
 	INFEASIBILITY_EL_NEG::DataFrame
+	INFEASIBILITY_ES::DataFrame
 	EB_nodal::DataFrame
 	EB_zonal::DataFrame
 	CURT::DataFrame
 	Alpha::DataFrame
 	CC_LINE_MARGIN::DataFrame
+	INFEASIBILITY_CC_LINES::DataFrame
 	G_RES::DataFrame
 	H_RES::DataFrame
 	COST_G::DataFrame
@@ -40,6 +42,7 @@ mutable struct Result
 	COST_REDISPATCH::DataFrame
 	COST_INFEASIBILITY_EL::DataFrame
 	COST_INFEASIBILITY_H::DataFrame
+	COST_INFEASIBILITY_ES::DataFrame
 	misc_results::Dict
 	function Result()
 		return new()
@@ -87,13 +90,14 @@ function POMATO(model::Model,
 	## Plant Mappings
 	# mapping heat index to G index
 	mapping_he = findall(plant -> plant.h_max > 0, data.plants)
+
 	m.mapping = (slack = findall(node -> node.slack, data.nodes),
 			 he = mapping_he,
 			 chp = findall(plant -> ((plant.h_max > 0)&(plant.g_max > 0)), data.plants[mapping_he]),
 			 es = findall(plant -> plant.plant_type in options["plant_types"]["es"], data.plants),
 			 hs = findall(plant -> plant.plant_type in options["plant_types"]["hs"], data.plants[mapping_he]),
 			 ph = findall(plant -> plant.plant_type in options["plant_types"]["ph"], data.plants[mapping_he]),
-			 alpha = findall(plant -> plant.g_max > options["chance_constrained"]["alpha_plants_mw"], data.plants),
+			 alpha = findall(plant -> ((plant.g_max > options["chance_constrained"]["alpha_plants_mw"])&(plant.mc_el <= options["chance_constrained"]["alpha_plants_mc"])), data.plants),
 			 cc_res = findall(res_plants -> res_plants.g_max > options["chance_constrained"]["cc_res_mw"], data.renewables),
 			 )
 

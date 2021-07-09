@@ -32,11 +32,13 @@ function get_result_info(pomato::POMATO)
 			    :INFEASIBILITY_H_NEG => var_info(([:t, :heatareas], [1:n.t, 1:n.heatareas], [:t, :ha, :INFEASIBILITY_H_NEG], false)),
 			    :INFEASIBILITY_EL_POS => var_info(([:t, :nodes], [1:n.t, 1:n.nodes], [:t, :n, :INFEASIBILITY_EL_POS], false)),
 			    :INFEASIBILITY_EL_NEG => var_info(([:t, :nodes], [1:n.t, 1:n.nodes], [:t, :n, :INFEASIBILITY_EL_NEG], false)),
+			    :INFEASIBILITY_ES => var_info(([:t, :plants], [1:n.t, mapping.es], [:t, :p, :INFEASIBILITY_ES], false)),
 			    :EB_nodal => var_info(([:t, :nodes], [1:n.t, 1:n.nodes], [:t, :n, :EB_nodal], true)),
 			    :EB_zonal => var_info(([:t, :zones], [1:n.t, 1:n.zones], [:t, :z, :EB_zonal], true)),
 			    :CURT => var_info(([:t, :renewables], [1:n.t, 1:n.res], [:t, :p, :CURT], false)),
 			    :Alpha => var_info(([:t, :plants], [1:n.t, mapping.alpha], [:t, :p, :Alpha], false)),
-			    :CC_LINE_MARGIN => var_info(([:t, :contingencies, (:contingencies, :lines)], [], [:t, :co, :cb, :T], false)),
+			    :CC_LINE_MARGIN => var_info(([:t, :contingencies, (:contingencies, :lines)], [], [:t, :co, :cb, :CC_LINE_MARGIN], false)),
+			    :INFEASIBILITY_CC_LINES => var_info(([:t, :contingencies, (:contingencies, :lines)], [], [:t, :co, :cb, :INFEASIBILITY_CC_LINES], false)),
 			    :G_RES => var_info(([:t, :renewables], [1:n.t, 1:n.res], [:t, :p, :G_RES], false)),
 			    :H_RES => var_info(([:t, :renewables], [1:n.t, 1:n.res], [:t, :p, :H_RES], false)),
 			    :COST_G => var_info(([:t], [1:n.t], [:t, :COST_G], false)),
@@ -46,6 +48,7 @@ function get_result_info(pomato::POMATO)
 			    :COST_REDISPATCH => var_info(([:t], [1:n.t], [:t, :COST_REDISPATCH], false)),
 			    :COST_INFEASIBILITY_EL => var_info(([:t], [1:n.t], [:t, :COST_INFEASIBILITY_EL], false)),
 			    :COST_INFEASIBILITY_H => var_info(([:t], [1:n.t], [:t, :COST_INFEASIBILITY_H], false)),
+			    :COST_INFEASIBILITY_ES => var_info(([:t], [1:n.t], [:t, :COST_INFEASIBILITY_ES], false)),
 			)
 end
 
@@ -66,6 +69,21 @@ function Result(pomato::POMATO)
 	end
 	result.misc_results["Solve Status"] = JuMP.termination_status(pomato.model)
 	return result
+end
+
+function Result(data_dir::String, result_dir::String)
+	options, data = read_model_data(data_dir)
+	data.folders["result_dir"] = result_dir
+	pomato = POMATO(Model(), data, options)
+
+	result_info = get_result_info(pomato)
+	result = Result()
+
+	for v in keys(result_info)
+		setfield!(result, v, DataFrame(CSV.File(result_dir*string(v)*".csv"), copycols=true))
+	end
+	result.misc_results = JSON.parsefile(result_dir*"misc_results.json"; dicttype=Dict)
+	return result, options, data
 end
 
 function concat_results(results::Dict{String, Result})

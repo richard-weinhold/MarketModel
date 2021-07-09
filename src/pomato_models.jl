@@ -91,7 +91,7 @@ function market_model(data::Data, options::Dict{String, Any})
 	add_electricity_energy_balance!(pomato::POMATO)
 
 	@info("Adding Objective Function...")
-	add_objective!(pomato)
+	add_objective!(pomato);
 
 	@info("Solving...")
 	t_start = time_ns()

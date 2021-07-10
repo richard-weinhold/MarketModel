@@ -16,12 +16,10 @@ function add_optimizer!(pomato::POMATO)
 	global optimizer_package
 	set_optimizer(pomato.model, optimizer)
 	if string(optimizer_package) == "Gurobi"
-		method = (typeof(pomato.options["solver"]["method"]) <: Int ?
-			pomato.options["solver"]["method"] : 3 )
-		threads = (typeof(pomato.options["solver"]["threads"]) <: Int ?
-			pomato.options["solver"]["method"] : Threads.nthreads() - 2 < 0 ? 0 : Threads.nthreads() - 2 )
+		method = (typeof(pomato.options["solver"]["method"]) <: Int ? pomato.options["solver"]["method"] : 3 )
+		threads = (typeof(pomato.options["solver"]["threads"]) <: Int ? pomato.options["solver"]["threads"] : Threads.nthreads() - 2)
 		@info("Using Method $(method) with $(threads) threads")
-		set_optimizer_attributes(pomato.model, "Method" => 3,
+		set_optimizer_attributes(pomato.model, "Method" => method,
 								 "Threads" => threads,
 								 "LogFile" => pomato.data.folders["result_dir"]*"/log.txt")
 	end

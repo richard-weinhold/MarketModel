@@ -23,7 +23,8 @@ function add_optimizer!(pomato::POMATO)
 			pomato.model, 
 			"Method" => method,
 			"Threads" => threads,
-			"BarConvTol" => 1e-4,
+			"BarConvTol" => 1e-12,
+			"Crossover" => 0,
 			"LogFile" => pomato.data.folders["result_dir"]*"/log.txt")
 	end
 end

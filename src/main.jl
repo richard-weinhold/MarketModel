@@ -61,7 +61,7 @@ nothing, but the Result struct can be returned with optional argument `return_re
 """
 function run_market_model(data_dir::String, result_dir::String, input_optimizer;
 						  return_result::Bool=false, redispatch::Bool=false)
-	set_logger()
+	# set_logger()
 	@info("Read Model Data..")
 
 	options, data = read_model_data(data_dir)

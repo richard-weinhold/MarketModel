@@ -327,7 +327,9 @@ function set_model_horizon!(data::Data)
     for res in data.renewables
 		res.mu = res.mu[timesteps]
 		res.mu_rt = res.mu_rt[timesteps]
-		res.mu_da = res.mu_da[timesteps]
+        if isdefined(res, :mu_da)
+		    res.mu_da = res.mu_da[timesteps]
+        end
 		res.mu_heat = res.mu_heat[timesteps]
 		res.sigma = res.sigma[timesteps]
 		res.sigma_heat = res.sigma_heat[timesteps]

@@ -30,7 +30,8 @@
     "include": false,
     "fixed_alpha": true,
     "cc_res_mw": 5,
-    "alpha_plants_mw": 50
+    "alpha_plants_mw": 50,
+    "alpha_plants_mc": 20
   },
   "parameters": {
     "storage_start": 0.65
@@ -46,7 +47,7 @@
       "cost": 100.0,
       "bound": 10000
     },
-    "lines": {
+    "storages": {
       "include": false,
       "cost": 1000.0,
       "bound": 20
@@ -62,6 +63,28 @@
     ],
     "ph": []
   },
-  "t_start": "t0001",
-  "t_end": "t0024"
+  "grid": {
+    "redundancy_removal_option": "clarkson_base",
+    "precalc_filename": "",
+    "include_contingencies_redispatch": false,
+    "sensitivity": 0.05,
+    "capacity_multiplier": 1,
+    "preprocess": true,
+    "cbco_option": "clarkson_base",
+    "gsk": "gmax"
+  },
+  "fbmc": {
+    "gsk": "dynamic",
+    "minram": 0.4,
+    "flowbased_region": [
+      "R1",
+      "R2",
+      "R3"
+    ],
+    "cne_sensitivity": 0.05,
+    "lodf_sensitivity": 0.2,
+    "frm": 0,
+    "reduce": true,
+    "enforce_ntc_domain": true
+  }
 }

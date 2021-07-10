@@ -207,7 +207,7 @@ function add_electricity_storage_constraints!(pomato::POMATO)
 	@constraint(model, L_es[n.t, :] .>= [storage_end(es) for es in 1:n.es]);
 
 	for t in 1:n.t
-		add_to_expression!(COST_INFEASIBILITY_ES[t],  sum(INFEASIBILITY_ES[t, :])*1000.0);
+		add_to_expression!(COST_INFEASIBILITY_ES[t],  sum(INFEASIBILITY_ES[t, :])*pomato.options["infeasibility"]["storages"]["cost"]);
 	end
 end
 

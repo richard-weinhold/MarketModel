@@ -33,7 +33,8 @@
     "include": false,
     "fixed_alpha": true,
     "cc_res_mw": 50,
-    "alpha_plants_mw": 200
+    "alpha_plants_mw": 50,
+    "alpha_plants_mc": 20
   },
   "parameters": {
     "storage_start": 0.65
@@ -45,6 +46,11 @@
       "bound": 200
     },
     "electricity": {
+      "include": false,
+      "cost": 500,
+      "bound": 1000000.0
+    },
+    "storages": {
       "include": false,
       "cost": 500,
       "bound": 1000000.0

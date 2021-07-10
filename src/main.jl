@@ -14,7 +14,7 @@ Upper level functions to run the models. These are the functions exposed by Mark
 
 function set_logger()
 	# global_logger(ConsoleLogger(stdout, Logging.Info))
-	if isfile(pwd()*"/logs/RedundancyRemoval.log")
+	if isfile(pwd()*"/logs/MarketModel.log")
 		TeeLogger(MinLevelLogger(FileLogger(pwd()*"/logs/MarketModel.log", append=true), Logging.Info),
 		          ConsoleLogger(stdout, Logging.Info)) |> global_logger
 		@info("Logfile Found, logging to console and logfile.")

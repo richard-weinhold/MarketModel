@@ -86,5 +86,9 @@
     "frm": 0,
     "reduce": true,
     "enforce_ntc_domain": true
+  },
+  "solver": {
+    "method": "", 
+    "threads": ""
   }
 }

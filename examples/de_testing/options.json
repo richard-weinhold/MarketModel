@@ -94,5 +94,9 @@
   },
   "data": {
     "result_copy": false
+  },
+  "solver": {
+    "method": "", 
+    "threads": ""
   }
 }

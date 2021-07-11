@@ -1,1 +1,1 @@
-index,timestep,plant,storage_level
+index,timestep,plant,storage_start,storage_end

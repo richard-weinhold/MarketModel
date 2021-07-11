@@ -21,11 +21,14 @@ function add_optimizer!(pomato::POMATO)
 			"LogFile" => pomato.data.folders["result_dir"]*"/log.txt")
 		end
 		if "solver_options" in keys(pomato.options)
+			@info("Adding user solver options: ")
 			for option in keys(pomato.options["solver_options"])
+				@info("$(option): $(pomato.options["solver_options"][option])")
 				set_optimizer_attribute(
 					pomato.model, option, pomato.options["solver_options"][option])
 			end
 		else
+			@info(keys(pomato.options))
 			set_optimizer_attribute(pomato.model, "Method", 3)
 			set_optimizer_attribute(pomato.model, "Threads", Threads.nthreads() - 2)
 		end

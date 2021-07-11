@@ -87,8 +87,6 @@
     "reduce": true,
     "enforce_ntc_domain": true
   },
-  "solver": {
-    "method": "", 
-    "threads": ""
+  "solver_options": {
   }
 }

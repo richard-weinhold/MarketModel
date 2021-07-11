@@ -16,17 +16,18 @@ function add_optimizer!(pomato::POMATO)
 	global optimizer_package
 	set_optimizer(pomato.model, optimizer)
 	if string(optimizer_package) == "Gurobi"
-		method = (typeof(pomato.options["solver"]["method"]) <: Int ? pomato.options["solver"]["method"] : 3 )
-		threads = (typeof(pomato.options["solver"]["threads"]) <: Int ? pomato.options["solver"]["threads"] : Threads.nthreads() - 2)
-		@info("Using Method $(method) with $(threads) threads")
 		set_optimizer_attributes(
 			pomato.model, 
-			"Method" => method,
-			"Threads" => threads,
-			"BarConvTol" => 1e-12,
-			"Crossover" => 0,
+			"Method" => 3,
+			"Threads" => Threads.nthreads() - 2,
 			"LogFile" => pomato.data.folders["result_dir"]*"/log.txt")
-	end
+		end
+		if "solver_options" in keys(pomato.options)
+			for option in keys(pomato.options["solver_options"])
+				set_optimizer_attribute(
+					pomato.model, option, pomato.options["solver_options"][option])
+			end
+		end
 end
 
 function market_model(data::Data, options::Dict{String, Any})

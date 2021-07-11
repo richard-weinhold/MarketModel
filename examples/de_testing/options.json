@@ -95,8 +95,6 @@
   "data": {
     "result_copy": false
   },
-  "solver": {
-    "method": "", 
-    "threads": ""
+  "solver_options": {
   }
 }

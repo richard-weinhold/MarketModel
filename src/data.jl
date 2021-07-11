@@ -230,7 +230,8 @@ mutable struct Plant
     inflow::Array
     storage_start::Float64
     storage_end::Float64
-    storage_level::Array
+    storage_level_start::Array
+    storage_level_end::Array
     
     function Plant(index::Int,
                    name::Any,

@@ -158,7 +158,8 @@ function populate_plants(raw::RAW)
             newp.inflow = (length(inflow_data) > 0 ? inflow_data :
                            zeros(length(raw.model_horizon[:, :timesteps])))
             
-            newp.storage_level = raw.storage_level[raw.storage_level[:, :plant] .== name, :storage_level]
+            newp.storage_level_start = raw.storage_level[raw.storage_level[:, :plant] .== name, :storage_start]
+            newp.storage_level_end = raw.storage_level[raw.storage_level[:, :plant] .== name, :storage_end]
             newp.storage_capacity = raw.plants[p, :storage_capacity]
             newp.d_max = raw.plants[p, :d_max]
         end
@@ -299,9 +300,9 @@ function set_model_horizon!(data::Data, split::Int)
 		end
 		z.net_export = z.net_export[timesteps]
 	end
-    for p in filter(plant -> isdefined(plant, :storage_level), data.plants)
-        p.storage_start = p.storage_level[split]
-        p.storage_end = split + 1 <= length(p.storage_level) ? p.storage_level[split + 1] : p.storage_level[1]
+    for p in filter(plant -> isdefined(plant, :storage_level_start), data.plants)
+        p.storage_start = p.storage_level_start[split]
+        p.storage_end = p.storage_level_end[split]
     end
     for res in data.renewables
 		res.mu = res.mu[timesteps]

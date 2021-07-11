@@ -18,8 +18,6 @@ function add_optimizer!(pomato::POMATO)
 	if string(optimizer_package) == "Gurobi"
 		set_optimizer_attributes(
 			pomato.model, 
-			"Method" => 3,
-			"Threads" => Threads.nthreads() - 2,
 			"LogFile" => pomato.data.folders["result_dir"]*"/log.txt")
 		end
 		if "solver_options" in keys(pomato.options)
@@ -27,6 +25,9 @@ function add_optimizer!(pomato::POMATO)
 				set_optimizer_attribute(
 					pomato.model, option, pomato.options["solver_options"][option])
 			end
+		else
+			set_optimizer_attribute(pomato.model, "Method", 3)
+			set_optimizer_attribute(pomato.model, "Threads", Threads.nthreads() - 2)
 		end
 end
 

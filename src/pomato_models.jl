@@ -28,7 +28,7 @@ function add_optimizer!(pomato::POMATO)
 					pomato.model, option, pomato.options["solver_options"][option])
 			end
 		else
-			@info(keys(pomato.options))
+			@info("Adding default solver options for Gurobi: Method 3, Threads: $(Threads.nthreads() - 2)")
 			set_optimizer_attribute(pomato.model, "Method", 3)
 			set_optimizer_attribute(pomato.model, "Threads", Threads.nthreads() - 2)
 		end

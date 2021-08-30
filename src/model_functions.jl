@@ -347,8 +347,8 @@ function add_curtailment_constraints!(pomato::POMATO, zones::Vector{String}, cur
 	for res in 1:n.res, t in 1:n.t
 		add_to_expression!(CURT[t, res], res in res_in_zone ? CURT_REDISPATCH[t, res] : curt_market[t, res])
 	end
-	# @constraint(model, MinCurt[t=1:n.t, res=res_in_zone],
-	# 	CURT[t, res] >= curt_market[t, res])
+	@constraint(model, MinCurt[t=1:n.t, res=res_in_zone],
+		CURT[t, res] >= curt_market[t, res])
 	@constraint(model, MaxCurt[t=1:n.t, res=res_in_zone],
 		CURT[t, res] <= G_RES[t, res])
 	for t in 1:n.t

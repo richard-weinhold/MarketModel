@@ -146,13 +146,14 @@ function populate_plants(raw::RAW)
         node_name = raw.plants[p, :node]
         node_idx = raw.nodes[raw.nodes[:, :index] .== node_name, :int_idx][1]
         eta = raw.plants[p, :eta]*1.
+        availability = raw.plants[p, :availability]*1.
         g_max = raw.plants[p, :g_max]*1.
         h_max = raw.plants[p, :h_max]*1.
         mc_el = raw.plants[p, :mc_el]*1.
         mc_heat = raw.plants[p, :mc_heat]*1.
         plant_type = raw.plants[p, :plant_type]
         newp = Plant(index, name, node_idx, mc_el,
-                     mc_heat, eta, g_max, h_max, plant_type)
+                     mc_heat, eta, availability, g_max, h_max, plant_type)
         if plant_type in union(raw.plant_types["hs"], raw.plant_types["es"])
             inflow_data = raw.inflows[raw.inflows[:, :plant] .== name, :inflow]
             newp.inflow = (length(inflow_data) > 0 ? inflow_data :

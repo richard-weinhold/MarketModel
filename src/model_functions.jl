@@ -226,7 +226,7 @@ function add_electricity_generation_constraints!(pomato::POMATO)
 
 	# G Upper Bound
 	@constraint(model, [t=1:n.t],
-		G[t, :] .<= [data.plants[p].g_max for p in 1:n.plants])
+		G[t, :] .<= [data.plants[p].g_max * data.plants[p].availability  for p in 1:n.plants])
 
 	# DC Lines Constraints
 	@constraint(model, [t=1:n.t],
@@ -303,8 +303,9 @@ function add_heat_generation_constraints!(pomato::POMATO)
 		H[t, :] .<= [data.plants[mapping.he[he]].h_max for he in 1:n.he])
 
 	# CHP plants
+	available_capacity(chp) = data.plants[mapping.he[mapping.chp[chp]]].g_max * data.plants[mapping.he[mapping.chp[chp]]].availability
 	@constraint(model, [t=1:n.t, chp in 1:n.chp],
-	    G[t, mapping.he[mapping.chp[chp]]] >= ((data.plants[mapping.he[mapping.chp[chp]]].g_max*(1 - chp_efficiency))
+	    G[t, mapping.he[mapping.chp[chp]]] >= ((available_capacity(chp)*(1 - chp_efficiency))
 			/ data.plants[mapping.he[mapping.chp[chp]]].h_max) * H[t, mapping.chp[chp]])
 
 	@constraint(model, [t=1:n.t, chp in 1:n.chp],
@@ -709,7 +710,9 @@ function redispatch_model!(pomato::POMATO, market_model_results::Dict, redispatc
 	infeas_neg_market, infeas_pos_market = market_model_results["infeas_neg_market"], market_model_results["infeas_pos_market"]
 
 	redispatch_zones_nodes = vcat([data.zones[z].nodes for z in findall(z -> z.name in redispatch_zones, data.zones)]...)
-	redispatch_zones_plants = setdiff(findall(p -> p.node in redispatch_zones_nodes, data.plants), union(pomato.mapping.es, mapping.ph))
+	# No heat, storages or power-to-heat units can participate in redispatch.
+	redispatch_zones_plants = setdiff(findall(p -> p.node in redispatch_zones_nodes, data.plants), 
+		union(pomato.mapping.es, mapping.ph, mapping.he[mapping.chp]))
 
 	## Build Redispatch model
 	@variable(model, G_redispatch[1:n.t, redispatch_zones_plants] >= 0) # El. power generation per plant p
@@ -813,7 +816,7 @@ function redispatch_model!(pomato::POMATO, market_model_results::Dict, redispatc
 	end
 	# G Upper Bound
 	@constraint(model, [t=1:n.t, p=redispatch_zones_plants],
-		G_redispatch[t, p] <= data.plants[p].g_max)
+		G_redispatch[t, p] <= data.plants[p].g_max * data.plants[p].availability)
 	# @constraint(model, [t=1:n.t, p=redispatch_zones_plants],
 	# 	G_redispatch_neg[t, p] <= data.plants[p].g_max)
 	# @constraint(model, [t=1:n.t, p=redispatch_zones_plants],

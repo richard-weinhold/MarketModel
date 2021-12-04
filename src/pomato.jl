@@ -57,22 +57,22 @@ mutable struct POMATO
 	result::Result
 
     ### Mappings and Sets
-    n::NamedTuple{(:t, :zones, :nodes, :heatareas,
-                   :plants, :res, :dc, :lines, :contingencies,
-                   :he, :chp, :es, :hs, :ph, :alpha, :cc_res)
-                    ,Tuple{Vararg{Int, 16}}}
+    n::NamedTuple{(
+		:t, :zones, :nodes, :heatareas,
+        :plants, :res, :dc, :lines, :contingencies,
+        :he, :chp, :es, :hs, :ph, :alpha, :cc_res), Tuple{Vararg{Int, 16}}}
 
     ## Plant Mappings
-    mapping::NamedTuple{(:slack, # slacks to 1:n_nodes
-                     :he, # 1:N.he index to 1:N.plants
-                     :chp, # 1:N.chp to 1:N.he
-                     :es, # 1:N.es to 1:N.plants
-                     :hs, # 1:N.hs to 1:N.he
-                     :ph, # 1:N.ph to 1:N.he
-                     :alpha, # 1:N.alpha to 1:N.he
-                     :cc_res, # map 1:cc_res to 1:n_res
-					 ),
-                    Tuple{Vararg{Vector{Int}, 8}}}
+    mapping::NamedTuple{(
+		:slack, # slacks to 1:n_nodes
+        :he, # 1:N.he index to 1:N.plants
+        :chp, # 1:N.chp to 1:N.he
+        :es, # 1:N.es to 1:N.plants
+        :hs, # 1:N.hs to 1:N.he
+        :ph, # 1:N.ph to 1:N.he
+        :alpha, # 1:N.alpha to 1:N.he
+        :cc_res, # map 1:cc_res to 1:n_res
+		), Tuple{Vararg{Vector{Int}, 8}}}
 		function POMATO()
 			return new()
 		end
@@ -91,15 +91,16 @@ function POMATO(model::Model,
 	# mapping heat index to G index
 	mapping_he = findall(plant -> plant.h_max > 0, data.plants)
 
-	m.mapping = (slack = findall(node -> node.slack, data.nodes),
-			 he = mapping_he,
-			 chp = findall(plant -> ((plant.h_max > 0)&(plant.g_max > 0)), data.plants[mapping_he]),
-			 es = findall(plant -> plant.plant_type in options["plant_types"]["es"], data.plants),
-			 hs = findall(plant -> plant.plant_type in options["plant_types"]["hs"], data.plants[mapping_he]),
-			 ph = findall(plant -> plant.plant_type in options["plant_types"]["ph"], data.plants[mapping_he]),
-			 alpha = findall(plant -> ((plant.g_max > options["chance_constrained"]["alpha_plants_mw"])&(plant.mc_el <= options["chance_constrained"]["alpha_plants_mc"])), data.plants),
-			 cc_res = findall(res_plants -> res_plants.g_max > options["chance_constrained"]["cc_res_mw"], data.renewables),
-			 )
+	m.mapping = (
+		slack = findall(node -> node.slack, data.nodes),
+		he = mapping_he,
+		chp = findall(plant -> ((plant.h_max > 0)&(plant.g_max > 0)), data.plants[mapping_he]),
+		es = findall(plant -> plant.plant_type in options["plant_types"]["es"], data.plants),
+		hs = findall(plant -> plant.plant_type in options["plant_types"]["hs"], data.plants[mapping_he]),
+		ph = findall(plant -> plant.plant_type in options["plant_types"]["ph"], data.plants[mapping_he]),
+		alpha = findall(plant -> ((plant.g_max > options["chance_constrained"]["alpha_plants_mw"])&(plant.mc_el <= options["chance_constrained"]["alpha_plants_mc"])), data.plants),
+		cc_res = findall(res_plants -> res_plants.g_max > options["chance_constrained"]["cc_res_mw"], data.renewables),
+	)
 
 	m.n = (t = size(data.t, 1),
 		   zones = size(data.zones, 1),

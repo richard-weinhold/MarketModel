@@ -18,8 +18,8 @@ function add_optimizer!(pomato::POMATO)
 	if string(optimizer_package) == "Gurobi"
 		set_optimizer_attributes(
 			pomato.model, 
-			"LogFile" => pomato.data.folders["result_dir"]*"/log.txt")
-		end
+			"LogFile" => pomato.data.folders["result_dir"]*"/log.txt"
+		)
 		if "solver_options" in keys(pomato.options)
 			@info("Adding user solver options: ")
 			for option in keys(pomato.options["solver_options"])
@@ -32,6 +32,7 @@ function add_optimizer!(pomato::POMATO)
 			set_optimizer_attribute(pomato.model, "Method", 1)
 			set_optimizer_attribute(pomato.model, "Threads", Threads.nthreads() - 2)
 		end
+	end
 end
 
 function market_model(data::Data, options::Dict{String, Any})
@@ -65,7 +66,7 @@ function market_model(data::Data, options::Dict{String, Any})
 		add_ntc_constraints!(pomato)
 	end
 
-	if in(pomato.options["type"] , ["zonal", "cbco_zonal"])
+	if in(pomato.options["type"] , ["fbmc"])
 		if options["chance_constrained"]["include"]
 			@info("Adding FB-Chance Constraints...")
 			@time add_chance_constrained_flowbased_constraints!(pomato)
@@ -79,7 +80,7 @@ function market_model(data::Data, options::Dict{String, Any})
 		end
 	end
 
-	if in(pomato.options["type"] , ["nodal", "cbco_nodal"]) 
+	if in(pomato.options["type"] , ["opf", "scopf"]) 
 		if options["chance_constrained"]["include"]
 			@info("Adding Chance Constraints...")
 			@time add_chance_constraints!(pomato)
@@ -90,14 +91,10 @@ function market_model(data::Data, options::Dict{String, Any})
 			else
 				@info("Adding power flow constraints using the angle formulation.")
 				add_dclf_angle_constraints!(pomato)
+				# add_ntc_constraints!(pomato)
 				# add_dclf_ptdf_constraints!(pomato)
 			end
 		end
-	end
-
-	if (pomato.options["constrain_nex"])
-		@info("Adding NEX Constraints...")
-		add_net_position_constraints!(pomato)
 	end
 
 	add_electricity_energy_balance!(pomato::POMATO)

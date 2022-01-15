@@ -268,7 +268,7 @@ end
 
 function populate_network(raw::RAW, lines::Vector{Line}, nodes::Vector{Node}, zones::Vector{Zone})
 
-    if raw.options["type"] in ["zonal", "cbco_zonal"]
+    if raw.options["type"] in ["fbmc"]
         if "timestep" in names(raw.grid)
             tmp_contingencies = []
             for timestep in raw.model_horizon[:, :timesteps]

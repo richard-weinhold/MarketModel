@@ -1,12 +1,11 @@
 {
   "title": "default",
-  "type": "zonal",
+  "type": "fbmc",
   "model_horizon": [
     0,
     2
   ],
   "heat_model": true,
-  "constrain_nex": false,
   "timeseries": {
     "split": true,
     "type": "rt",
@@ -73,7 +72,6 @@
     "redundancy_removal_option": "full",
     "precalc_filename": "",
     "sensitivity": 0.1,
-    "capacity_multiplier": 1,
     "preprocess": true
   },
   "fbmc": {

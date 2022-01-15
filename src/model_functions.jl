@@ -580,22 +580,6 @@ function add_ntc_constraints!(pomato::POMATO, zones::Vector{Int})
 	end
 end
 
-function add_net_position_constraints!(pomato::POMATO)
-	model, n, mapping, data = pomato.model, pomato.n, pomato.mapping, pomato.data
-	EX = model[:EX]
-	nex_zones = [z.index for z in data.zones if any(z.net_position .!== missing)]
-	@info("Including NEX Constraints for: "*join([data.zones[z].name*", " for z in nex_zones])[1:end-2])
-	# # Applies to nodal model for basecase calculation:
-	@constraint(model, [t=1:n.t, z=nex_zones], 
-		sum(EX[t, z, zz] - EX[t, zz, z] for zz in 1:n.zones)
-		<= data.zones[z].net_position[t] + 0.1*abs(data.zones[z].net_position[t])
-	);
-	@constraint(model, [t=1:n.t, z=nex_zones], 
-		sum(EX[t, z, zz] - EX[t, zz, z] for zz in 1:n.zones)
-		>= data.zones[z].net_position[t] - 0.1*abs(data.zones[z].net_position[t])
-	);
-end
-
 function create_alpha_loadflow_constraint(
 	ptdf::Array{Float64, 2},
 	B::Union{Array{GenericAffExpr{Float64, VariableRef},2}, Array{Real,2}, Array{Float64,2}},

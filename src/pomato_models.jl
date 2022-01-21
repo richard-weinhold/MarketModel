@@ -22,10 +22,10 @@ function add_optimizer!(pomato::POMATO)
 		)
 		if ("solver_options" in keys(pomato.options["solver"])) && (length(pomato.options["solver"]["solver_options"]) > 0)
 			@info("Adding user solver options: ")
-			for option in keys(pomato.options["solver_options"])
-				@info("$(option): $(pomato.options["solver_options"][option])")
+			for option in keys(pomato.options["solver"]["solver_options"])
+				@info("$(option): $(pomato.options["solver"]["solver_options"][option])")
 				set_optimizer_attribute(
-					pomato.model, option, pomato.options["solver_options"][option])
+					pomato.model, option, pomato.options["solver"]["solver_options"][option])
 			end
 		else
 			@info("Adding default solver options for Gurobi: Method 1, Threads: $(Threads.nthreads() - 2)")

@@ -20,7 +20,8 @@ function add_optimizer!(pomato::POMATO)
 			pomato.model, 
 			"LogFile" => pomato.data.folders["result_dir"]*"/log.txt"
 		)
-		if "solver_options" in keys(pomato.options)
+		if ("solver_options" in keys(pomato.options["solver"])) && \
+			(length(pomato.options["solver"]["solver_options"]) > 0) 
 			@info("Adding user solver options: ")
 			for option in keys(pomato.options["solver_options"])
 				@info("$(option): $(pomato.options["solver_options"][option])")

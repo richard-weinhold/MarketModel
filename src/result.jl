@@ -68,6 +68,7 @@ function Result(pomato::POMATO)
 		result.misc_results[cost] = sum(JuMP.value.(pomato.model[Symbol(cost)]))
 	end
 	result.misc_results["Solve Status"] = JuMP.termination_status(pomato.model)
+	result.options = pomato.options
 	return result
 end
 
@@ -83,6 +84,7 @@ function Result(data_dir::String, result_dir::String)
 		setfield!(result, v, DataFrame(CSV.File(result_dir*string(v)*".csv"), copycols=true))
 	end
 	result.misc_results = JSON.parsefile(result_dir*"misc_results.json"; dicttype=Dict)
+	result.options = pomato.options
 	return result, options, data
 end
 
@@ -98,6 +100,7 @@ function concat_results(results::Dict{String, Result})
 	for cost in ["COST_G", "COST_H", "COST_EX", "COST_CURT", "COST_REDISPATCH", "COST_INFEASIBILITY_EL", "COST_INFEASIBILITY_H"]
 		r.misc_results[cost] = sum([results[k].misc_results[cost] for k in keys(results)])
 	end
+	r.options = collect(values(results))[1].options
 	solved_to_opt = [results[k].misc_results["Solve Status"] != MOI.INFEASIBLE for k in keys(results)]
 	if all(solved_to_opt)
 		r.misc_results["Solve Status"] = MOI.OPTIMAL

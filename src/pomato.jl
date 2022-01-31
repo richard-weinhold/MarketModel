@@ -44,6 +44,7 @@ mutable struct Result
 	COST_INFEASIBILITY_H::DataFrame
 	COST_INFEASIBILITY_ES::DataFrame
 	misc_results::Dict
+	options::Dict
 	function Result()
 		return new()
 	end

@@ -17,6 +17,7 @@ module MarketModel
 using Logging, LoggingExtras
 using DataFrames, CSV, JSON, Dates, Base.Threads
 using LinearAlgebra, Distributions, SparseArrays
+using Clustering, Interpolations, RollingFunctions
 using JuMP
 
 include("data.jl")
@@ -25,6 +26,7 @@ include("result.jl")
 include("data_io.jl")
 include("data_processing.jl")
 include("gurobi_functions.jl")
+include("storage_model.jl")
 include("pomato_models.jl")
 include("model_functions.jl")
 include("main.jl")

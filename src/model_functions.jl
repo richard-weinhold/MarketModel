@@ -820,6 +820,7 @@ function redispatch_model!(pomato::POMATO, market_model_results::Dict, redispatc
 	redispatch_zones_idx = map(name -> findfirst(zone -> zone.name == name, data.zones), redispatch_zones)  
 	redispatch_line_subset = findall(line -> (line.zone_i in redispatch_zones_idx)&(line.zone_j in redispatch_zones_idx), data.lines)
 	@info("$(length(redispatch_line_subset)) lines part of the redispatch network")
+	
 	if pomato.options["grid"]["include_contingencies_redispatch"]
 		@info("Adding power flow constraints using the PTDF formulation.")
 		add_dclf_ptdf_constraints!(pomato)

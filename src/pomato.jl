@@ -79,14 +79,12 @@ mutable struct POMATO
 		end
 end
 
-function POMATO(model::Model,
-				data::Data,
-				options::Dict{String, Any})
+function POMATO(model::Model, data::Data)
 
 	m = POMATO()
 	m.model = model
 	m.data = data
-	m.options = options
+	m.options = data.options
 
 	## Plant Mappings
 	# mapping heat index to G index
@@ -96,11 +94,11 @@ function POMATO(model::Model,
 		slack = findall(node -> node.slack, data.nodes),
 		he = mapping_he,
 		chp = findall(plant -> ((plant.h_max > 0)&(plant.g_max > 0)), data.plants[mapping_he]),
-		es = findall(plant -> plant.plant_type in options["plant_types"]["es"], data.plants),
-		hs = findall(plant -> plant.plant_type in options["plant_types"]["hs"], data.plants[mapping_he]),
-		ph = findall(plant -> plant.plant_type in options["plant_types"]["ph"], data.plants[mapping_he]),
-		alpha = findall(plant -> ((plant.g_max > options["chance_constrained"]["alpha_plants_mw"])&(plant.mc_el <= options["chance_constrained"]["alpha_plants_mc"])), data.plants),
-		cc_res = findall(res_plants -> res_plants.g_max > options["chance_constrained"]["cc_res_mw"], data.renewables),
+		es = findall(plant -> plant.plant_type in m.options["plant_types"]["es"], data.plants),
+		hs = findall(plant -> plant.plant_type in m.options["plant_types"]["hs"], data.plants[mapping_he]),
+		ph = findall(plant -> plant.plant_type in m.options["plant_types"]["ph"], data.plants[mapping_he]),
+		alpha = findall(plant -> ((plant.g_max > m.options["chance_constrained"]["alpha_plants_mw"])&(plant.mc_el <= m.options["chance_constrained"]["alpha_plants_mc"])), data.plants),
+		cc_res = findall(res_plants -> res_plants.g_max > m.options["chance_constrained"]["cc_res_mw"], data.renewables),
 	)
 
 	m.n = (t = size(data.t, 1),

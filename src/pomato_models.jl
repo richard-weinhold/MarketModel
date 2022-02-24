@@ -35,11 +35,11 @@ function add_optimizer!(pomato::POMATO)
 	end
 end
 
-function market_model(data::Data, options::Dict{String, Any})
+function market_model(data)
 
-	pomato = POMATO(Model(), data, options)
+	pomato = POMATO(Model(), data)
 
-	if options["timeseries"]["type"] == "da"
+	if pomato.options["timeseries"]["type"] == "da"
 		set_da_timeseries!(data)
 	end
 
@@ -67,21 +67,21 @@ function market_model(data::Data, options::Dict{String, Any})
 	end
 
 	if in(pomato.options["type"] , ["fbmc"])
-		if options["chance_constrained"]["include"]
+		if pomato.options["chance_constrained"]["include"]
 			@info("Adding FB-Chance Constraints...")
 			@time add_chance_constrained_flowbased_constraints!(pomato)
 		else
 			@info("Adding FlowBased Constraints...")
 			add_flowbased_constraints!(pomato)
 		end
-		non_fb_region = findall(zone -> !(zone.name in options["fbmc"]["flowbased_region"]), data.zones)
+		non_fb_region = findall(zone -> !(zone.name in pomato.options["fbmc"]["flowbased_region"]), data.zones)
 		if length(non_fb_region) > 0
 			add_ntc_constraints!(pomato, non_fb_region)
 		end
 	end
 
 	if in(pomato.options["type"] , ["opf", "scopf"]) 
-		if options["chance_constrained"]["include"]
+		if pomato.options["chance_constrained"]["include"]
 			@info("Adding Chance Constraints...")
 			@time add_chance_constraints!(pomato)
 		else	
@@ -121,7 +121,7 @@ function market_model(data::Data, options::Dict{String, Any})
 	return pomato
 end
 
-function redispatch_model(market_result::Result, data::Data, options::Dict{String, Any})
+function redispatch_model(market_result::Result, data::Data)
 
 	set_rt_timeseries!(data)
 	redispatch_results = Dict{String, Result}()
@@ -129,8 +129,8 @@ function redispatch_model(market_result::Result, data::Data, options::Dict{Strin
 
 	market_result_variables = Dict{String, Array{Float64, 2}}()
 	mapping_he = findall(plant -> plant.h_max > 0, data.plants)
-	es = findall(plant -> plant.plant_type in options["plant_types"]["es"], data.plants)
-	ph = findall(plant -> plant.plant_type in options["plant_types"]["ph"], data.plants[mapping_he])
+	es = findall(plant -> plant.plant_type in data.options["plant_types"]["es"], data.plants)
+	ph = findall(plant -> plant.plant_type in data.options["plant_types"]["ph"], data.plants[mapping_he])
 
 	market_result_variables["g_market"] = Array(sort(unstack(market_result.G, :t, :p, :G))[:, [p.name for p in data.plants]])
 	market_result_variables["curt_market"] = size(market_result.CURT, 1) > 0 ? Array(sort(unstack(market_result.CURT, :t, :p, :CURT))[:, [res.name for res in data.renewables]]) : zeros(length(data.t), length(data.renewables))
@@ -140,23 +140,28 @@ function redispatch_model(market_result::Result, data::Data, options::Dict{Strin
 	market_result_variables["infeas_neg_market"] = Array(sort(unstack(market_result.INFEASIBILITY_EL_NEG, :t, :n, :INFEASIBILITY_EL_NEG))[:, [n.name for n in data.nodes]])
 
 	data.contingencies = data.redispatch_contingencies
-	pomato = POMATO(Model(), data, options)
+	pomato = POMATO(Model(), data)
 	
 	data_copy = deepcopy(pomato.data)
 	market_result_variables_copy = deepcopy(market_result_variables)
 
-	if options["redispatch"]["zonal_redispatch"]
-		redispatch_zones = [[zone] for zone in options["redispatch"]["zones"]]
+	if data.options["redispatch"]["zonal_redispatch"]
+		redispatch_zones = [[zone] for zone in data.options["redispatch"]["zones"]]
 	else
-		 redispatch_zones = [convert(Vector{String}, vcat(options["redispatch"]["zones"]))]
+		 redispatch_zones = [convert(Vector{String}, vcat(data.options["redispatch"]["zones"]))]
 	end
 	for zones in redispatch_zones
 		tmp_results = Dict{String, Result}()
 		# for timesteps in [t.index:t.index for t in data_copy.t]
-		model_horizon_segments = split_timeseries_segments(data, options["timeseries"]["redispatch_horizon"])
+		model_horizon_segments = split_timeseries_segments(
+			data, data.options["timeseries"]["redispatch_horizon"]
+		)
 		for timesteps in model_horizon_segments #[1:1]
 			# data = deepcopy(data_copy)
-			pomato = solve_redispatch_model(deepcopy(data_copy), deepcopy(market_result_variables_copy), options, timesteps, zones)
+			pomato = solve_redispatch_model(
+				deepcopy(data_copy), deepcopy(market_result_variables_copy), timesteps, zones
+			)
+			
 			tmp_results[data_copy.t[timesteps][1].name] = add_result!(pomato)
 		end
 		redispatch_results["redispatch_"*join(zones, "_")] = concat_results(tmp_results)
@@ -164,8 +169,11 @@ function redispatch_model(market_result::Result, data::Data, options::Dict{Strin
 	return redispatch_results
 end
 
-function solve_redispatch_model(data::Data, market_result_variables::Dict{String, Array{Float64, 2}},
-								options::Dict{String, Any}, timesteps::UnitRange, redispatch_zones::Vector{String})
+function solve_redispatch_model(
+	data::Data, market_result_variables::Dict{String, Array{Float64, 2}},
+	timesteps::UnitRange, redispatch_zones::Vector{String}
+)
+
 	data.t = data.t[timesteps]
 	set_model_horizon!(data)
 	for key in keys(market_result_variables)
@@ -173,7 +181,7 @@ function solve_redispatch_model(data::Data, market_result_variables::Dict{String
 	end
 	@info("Initializing Redispatch Model for zones $(redispatch_zones) Timestep $(data.t[1].name)")
 
-	pomato = POMATO(Model(), data, options)
+	pomato = POMATO(Model(), data)
 	MOI.set(pomato.model, MOI.Silent(), false)
 	add_optimizer!(pomato);
 	redispatch_model!(pomato, market_result_variables, redispatch_zones);

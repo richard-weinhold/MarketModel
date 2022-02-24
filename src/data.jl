@@ -305,6 +305,7 @@ mutable struct Data
     dc_lines::Vector{DC_Line}
     t::Vector{Timestep}
     folders::Dict{String, String}
+    options::Dict{String, Any}
 
     function Data(nodes::Vector{Node}, zones::Vector{Zone},
                   heatareas::Vector{Heatarea}, plants::Vector{Plant},

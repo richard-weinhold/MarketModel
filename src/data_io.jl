@@ -59,7 +59,10 @@ mutable struct RAW
         raw.ntc = DataFrame(CSV.File(data_dir*"ntc.csv"), copycols=true)
         raw.net_position = DataFrame(CSV.File(data_dir*"net_position.csv"), copycols=true)
         raw.net_export = DataFrame(CSV.File(data_dir*"net_export.csv"), copycols=true)
-        raw.inflows = DataFrame(CSV.File(data_dir*"inflows.csv"), copycols=true)
+        
+        inflows = DataFrame(CSV.File(data_dir*"inflows.csv"), copycols=true)
+        raw.inflows = unstack(inflows, :timestep, :plant, :inflow)
+
         raw.storage_level = DataFrame(CSV.File(data_dir*"storage_level.csv"), copycols=true)
 
         raw.lines = DataFrame(CSV.File(data_dir*"lines.csv"), copycols=true)

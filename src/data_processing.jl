@@ -15,8 +15,8 @@ function read_model_data(data_dir::String)
     @info("Reading Model Data from: $(data_dir)")
     raw = RAW(data_dir)
 
-    zones = populate_zones(raw)
     nodes = populate_nodes(raw)
+    zones = populate_zones(raw, nodes)
     heatareas = populate_heatareas(raw)
     plants = populate_plants(raw)
     res_plants = populate_res_plants(raw)
@@ -45,10 +45,10 @@ function read_model_data(data_dir::String)
     data = Data(nodes, zones, heatareas, plants, res_plants, lines, 
                 contingencies, redispatch_contingencies, dc_lines, timesteps)
     data.folders = Dict("data_dir" => data_dir)
-    options = raw.options
+    data.options = raw.options
     raw = nothing
     @info("Data Prepared")
-    return options, data
+    return data
 end # end of function
 
 function populate_timesteps(raw::RAW)
@@ -61,7 +61,7 @@ function populate_timesteps(raw::RAW)
     return timesteps
 end
 
-function populate_zones(raw::RAW)
+function populate_zones(raw::RAW, nodes::Vector{Node})
     zones = Vector{Zone}()
     for z in 1:nrow(raw.zones)
         index = z
@@ -70,8 +70,9 @@ function populate_zones(raw::RAW)
         nodes_name = raw.nodes[raw.nodes[:, :zone] .== name, :index]
         plants = filter(row -> row[:node] in nodes_name, raw.plants)[:, :int_idx]
         res_plants = filter(row -> row[:node] in nodes_name, raw.res_plants)[:, :int_idx]
-        demand = combine(groupby(filter(col -> col[:node] in nodes_name, raw.demand_el), :timestep, sort=true), :demand_el => sum)
-        newz = Zone(index, name, demand[:, :demand_el_sum], nodes_idx, plants, res_plants)
+        demand = sum(nodes[i].demand for i in nodes_idx)
+        # demand = combine(groupby(filter(col -> col[:node] in nodes_name, raw.demand_el), :timestep, sort=true), :demand_el => sum)
+        newz = Zone(index, name, demand, nodes_idx, plants, res_plants)
         if (size(raw.ntc, 2) > 1)
             ntc = filter(row -> row[:zone_i] == name, raw.ntc)
             newz.ntc = [zone in ntc[:, :zone_j] ?
@@ -79,10 +80,7 @@ function populate_zones(raw::RAW)
                         0 for zone in raw.zones[:, :index]]
         end
 
-        net_export = combine(groupby(filter(col -> col[:node] in nodes_name, raw.net_export), :timestep, sort=true), :net_export => sum)
-        newz.net_export = (size(net_export, 1) > 0 ? net_export[:, :net_export_sum] :
-                           zeros(length(raw.model_horizon[:, :timesteps])))
-
+        newz.net_export = sum(nodes[i].net_export for i in nodes_idx)
         net_position = combine(groupby(filter(col -> col[:zone] == name, raw.net_position), :timestep, sort=true), :net_position => sum)
         if size(net_position, 1) > 0
             newz.net_position = net_position[:, :net_position_sum]
@@ -140,6 +138,7 @@ end
 
 function populate_plants(raw::RAW)
     plants =  Vector{Plant}()
+    es_plants = union(raw.plant_types["hs"], raw.plant_types["es"])
     for p in 1:nrow(raw.plants)
         index = p
         name = string(raw.plants[p, :index])
@@ -154,11 +153,14 @@ function populate_plants(raw::RAW)
         plant_type = raw.plants[p, :plant_type]
         newp = Plant(index, name, node_idx, mc_el,
                      mc_heat, eta, availability, g_max, h_max, plant_type)
+
         if plant_type in union(raw.plant_types["hs"], raw.plant_types["es"])
-            inflow_data = raw.inflows[raw.inflows[:, :plant] .== name, :inflow]
-            newp.inflow = (length(inflow_data) > 0 ? inflow_data :
-                           zeros(length(raw.model_horizon[:, :timesteps])))
-            
+            newp.inflow = (
+                name in names(raw.inflows) ? 
+                raw.inflows[:,Symbol(name)] :
+                zeros(length(raw.model_horizon[:, :timesteps]))
+            )
+                           
             newp.storage_level_start = raw.storage_level[raw.storage_level[:, :plant] .== name, :storage_start]
             newp.storage_level_end = raw.storage_level[raw.storage_level[:, :plant] .== name, :storage_end]
             newp.storage_capacity = raw.plants[p, :storage_capacity]
@@ -184,9 +186,9 @@ function populate_res_plants(raw::RAW)
         mc_el = raw.res_plants[res, :mc_el]*1.
         mc_heat = raw.res_plants[res, :mc_heat]*1.
         plant_type = raw.res_plants[res, :plant_type]
-        newres = Renewables(index, name, g_max, h_max, mc_el, mc_heat,
-                            availability[:, name],
-                            node_idx, plant_type)
+        newres = Renewables(
+            index, name, g_max, h_max, mc_el, mc_heat, availability[:, name], node_idx, plant_type
+        )
 
         if "availability_da" in string.(names(raw.availability))
             availability_da = filter(col -> col[:plant] == name, raw.availability)[:, :availability_da]

@@ -76,6 +76,7 @@ function add_variables_expressions!(pomato::POMATO)
 	    ? sum(D_ph[t, findfirst(ph -> ph==plant, mapping.ph)] for plant in intersect(data.nodes[node].plants, mapping.ph))
 	    : 0
 		+ size(intersect(data.nodes[node].plants, mapping.es), 1) > 0
+		# Reverse mapping, from p to index in mapping es (1:n.es)
 	    ? sum(D_es[t, findfirst(es -> es==plant, mapping.es)] for plant in intersect(data.nodes[node].plants, mapping.es))
 	    : 0 );
 
@@ -116,7 +117,10 @@ function add_variables_expressions!(pomato::POMATO)
 	add_cost_expressions!(pomato)
 end
 
-function add_cost_expressions!(pomato::POMATO)
+function add_cost_expressions!(
+	pomato::POMATO; 
+	redispatch_zones::Vector{String}=Vector{String}()
+)
 	model = pomato.model
 	n = pomato.n
 	data = pomato.data
@@ -131,7 +135,8 @@ function add_cost_expressions!(pomato::POMATO)
 	@expression(model, COST_G[t=1:n.t],
 	    sum(G[t, p]*data.plants[p].mc_el for p in 1:n.plants));
 	@expression(model, COST_H[t=1:n.t],
-		n.he > 0 ? sum(H[t, he]*data.plants[mapping.he[he]].mc_heat for he in 1:n.he) : 0);
+		n.he > 0 ? sum(H[t, he]*data.plants[mapping.he[he]].mc_heat for he in 1:n.he) : 0
+	);
 	if n.res > 0
 		for t in 1:n.t
 			add_to_expression!(COST_G[t], 
@@ -148,7 +153,8 @@ function add_cost_expressions!(pomato::POMATO)
 	end
 	@expression(model, COST_EX[t=1:n.t], sum(EX[t, :, :]) + sum(F_DC_POS[t, :]) + sum(F_DC_NEG[t, :]));
 	
-	capacity_at_node(n) = 
+	# %%
+	capacity_at_node(n::Node) = 
     	((length(n.plants) > 0 ? sum(data.plants[p].g_max for p in n.plants) : 0 ))
 
 	cap_threshold = quantile([capacity_at_node(n) for n in data.nodes], 0.90)
@@ -157,12 +163,26 @@ function add_cost_expressions!(pomato::POMATO)
 	high_capacity_nodes = findall(n -> capacity_at_node(n) > cap_threshold, data.nodes)
 	high_demand_nodes = findall(n -> sum(n.demand) > dem_threshold, data.nodes)
 
+	if length(redispatch_zones) > 0
+		redispatch_nodes = vcat([data.zones[z].nodes for z in findall(z -> z.name in redispatch_zones, data.zones)]...)
+	else
+		redispatch_nodes = collect(1:n.nodes)
+	end
+
+	infeasibility_cost_multiplier(n::Int, type::Symbol) = (
+		type==:pos ?
+			(n in high_capacity_nodes ? 0.9 : 1.1)*(n in redispatch_nodes ? 1 : 10) :
+			(n in high_demand_nodes ? 0.9 : 1.1)*(n in redispatch_nodes ? 1 : 10)
+	)	
 	# Prefer nodes with high (90% quantile) installed capacities for positive infeasibility
 	# nodes with high demand for negative infeasibility
+	# nodes outside of the redispatch area get a 10x cost multiplier
 	@expression(model, COST_INFEASIBILITY_EL[t=1:n.t], 
-		(sum(n in high_capacity_nodes ? 0.9*INFEASIBILITY_EL_POS[t, n] : 1.1*INFEASIBILITY_EL_POS[t, n] for n in 1:n.nodes)
-		 + sum(n in high_demand_nodes ? 0.9*INFEASIBILITY_EL_NEG[t, n] : 1.1*INFEASIBILITY_EL_NEG[t, n] for n in 1:n.nodes)
-		 )*options["infeasibility"]["electricity"]["cost"]);
+		(
+			sum(infeasibility_cost_multiplier(n, :pos)*INFEASIBILITY_EL_POS[t, n] for n in 1:n.nodes)
+			+ sum(infeasibility_cost_multiplier(n, :neg)*INFEASIBILITY_EL_NEG[t, n] for n in 1:n.nodes)
+		)*options["infeasibility"]["electricity"]["cost"]
+	);
 
 	@expression(model, COST_INFEASIBILITY_H[t=1:n.t], (sum(INFEASIBILITY_H_POS[t, :])
 		+ sum(INFEASIBILITY_H_NEG[t, :]))*options["infeasibility"]["heat"]["cost"]);
@@ -188,13 +208,18 @@ function add_electricity_storage_constraints!(pomato::POMATO)
 	D_es, L_es, G = model[:D_es], model[:L_es], model[:G]
 	COST_INFEASIBILITY_ES = model[:COST_INFEASIBILITY_ES]
 
-	@variable(model, Dump_Water[1:n.t, 1:n.es] >= 0);
+	@variable(model, 0 <= Dump_Water[t=1:n.t, es=1:n.es] <= data.plants[mapping.es[es]].inflow[t]);
 	@variable(model, 0 <= INFEASIBILITY_ES[1:n.t, 1:n.es] <= pomato.options["infeasibility"]["storages"]["bound"]);
 	# Electricity Storage Equations
 	storage_start(es) = data.plants[mapping.es[es]].storage_start*data.plants[mapping.es[es]].storage_capacity
 	@constraint(model, [t=1:n.t, es=1:n.es],
-			L_es[t, es]  == (t>1 ? L_es[t-1, es] : storage_start(es)) + data.plants[mapping.es[es]].inflow[t]  
-			- G[t, mapping.es[es]] - Dump_Water[t, es] + INFEASIBILITY_ES[t, es] + data.plants[mapping.es[es]].eta*D_es[t, es])
+			L_es[t, es]  ==
+				(t>1 ? L_es[t-1, es] : storage_start(es)) 
+				+ data.plants[mapping.es[es]].inflow[t]  
+				- G[t, mapping.es[es]]
+				- Dump_Water[t, es] 
+				+ INFEASIBILITY_ES[t, es] 
+				+ data.plants[mapping.es[es]].eta*D_es[t, es])
 
 	@constraint(model, [t=1:n.t],
 		L_es[t, :] .<= [data.plants[mapping.es[es]].storage_capacity for es in 1:n.es])
@@ -204,7 +229,8 @@ function add_electricity_storage_constraints!(pomato::POMATO)
 
 	# lower bound on storage level in last timestep
 	storage_end(es) = data.plants[mapping.es[es]].storage_end*data.plants[mapping.es[es]].storage_capacity
-	@constraint(model, L_es[n.t, :] .>= [storage_end(es) for es in 1:n.es]);
+	# @constraint(model, [storage_end(es) for es in 1:n.es] .<= L_es[n.t, :] .<= [1.1*storage_end(es) for es in 1:n.es]);
+	@constraint(model, [es=1:n.es], L_es[n.t, es] == storage_end(es));
 
 	for t in 1:n.t
 		add_to_expression!(COST_INFEASIBILITY_ES[t],  sum(INFEASIBILITY_ES[t, :])*pomato.options["infeasibility"]["storages"]["cost"]);
@@ -793,6 +819,7 @@ function redispatch_model!(pomato::POMATO, market_model_results::Dict, redispatc
 		sum(RES_Node[t, node] for node in data.zones[z].nodes));
 
 	add_cost_expressions!(pomato);
+	
 	for t in 1:n.t
 		add_to_expression!(model[:COST_REDISPATCH][t], 
 			(sum(G_redispatch_pos[t, :]*pomato.options["redispatch"]["cost"]) + sum(G_redispatch_neg[t, :]*pomato.options["redispatch"]["cost"]))

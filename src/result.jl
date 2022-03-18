@@ -33,6 +33,7 @@ function get_result_info(pomato::POMATO)
 			    :INFEASIBILITY_EL_POS => var_info(([:t, :nodes], [1:n.t, 1:n.nodes], [:t, :n, :INFEASIBILITY_EL_POS], false)),
 			    :INFEASIBILITY_EL_NEG => var_info(([:t, :nodes], [1:n.t, 1:n.nodes], [:t, :n, :INFEASIBILITY_EL_NEG], false)),
 			    :INFEASIBILITY_ES => var_info(([:t, :plants], [1:n.t, mapping.es], [:t, :p, :INFEASIBILITY_ES], false)),
+			    :Dump_Water => var_info(([:t, :plants], [1:n.t, mapping.es], [:t, :p, :Dump_Water], false)),
 			    :EB_nodal => var_info(([:t, :nodes], [1:n.t, 1:n.nodes], [:t, :n, :EB_nodal], true)),
 			    :EB_zonal => var_info(([:t, :zones], [1:n.t, 1:n.zones], [:t, :z, :EB_zonal], true)),
 			    :CURT => var_info(([:t, :renewables], [1:n.t, 1:n.res], [:t, :p, :CURT], false)),
@@ -140,7 +141,9 @@ function model_symbol_to_df(v, result_info, pomato)
 			push!(rows, (row_ind..., arr[ind]))
 		end
 		dim_names = result_info[v].columns
-		df = DataFrame([dim_names[i] => [row[i] for row in rows] for i in 1:length(dim_names)])
+		df = DataFrame(
+			[dim_names[i] => [row[i] for row in rows] for i in 1:length(dim_names)]
+		)
 	elseif typeof(arr) <: JuMP.Containers.SparseAxisArray
 		rows = []
 		for (variable_set_indices, variable_value) in arr.data

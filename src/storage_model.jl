@@ -27,7 +27,7 @@ end
 
 function solve_storage_model(data::Data)
     # Setup 
-    nth_hour = 25
+    nth_hour = 5
     T = collect(1:nth_hour:length(data.t)-nth_hour)
     Z = 1:length(data.zones)
     C = 1:5
@@ -56,7 +56,10 @@ function solve_storage_model(data::Data)
     @variable(StorageModel, 0 <= EX[t=T, z=Z, zz=Z] <= data.zones[z].ntc[zz]);
     @variable(StorageModel, 0 <= INF_POS[t=T, z=Z] <= 1e9);
     @variable(StorageModel, 0 <= INF_NEG[t=T, z=Z] <= 1e9);
-    @variable(StorageModel, Dump_Water[t=T, es=ES] >= 0);
+    @variable(StorageModel, 
+        0 <= Dump_Water[t=T, es=ES] <= sum(storages[es].inflow[t:(t+nth_hour-1)])
+        # 0 <= Dump_Water[t=T, es=ES]
+    );
 
     @expression(StorageModel, G_es_zone[t=T, z=Z], 
         sum(G_es[t, es] for es in findall(es -> es.node in data.zones[z].nodes, storages))
@@ -89,8 +92,10 @@ function solve_storage_model(data::Data)
     
     storage_start(es) = storages[es].storage_capacity*0.5
     @constraint(StorageModel, [t=T, es=ES],
-        L[t, es] == (t>1 ? L[t-nth_hour, es] : storage_start(es)) + sum(storages[es].inflow[t:(t+nth_hour-1)]) 
-        - G_es[t, es]*nth_hour - Dump_Water[t, es]*nth_hour + storages[es].eta*D_es[t, es]*nth_hour
+        L[t, es] == (t>1 ? L[t-nth_hour, es] : storage_start(es)) 
+        + sum(storages[es].inflow[t:(t+nth_hour-1)]) 
+        - G_es[t, es]*nth_hour - 
+        Dump_Water[t, es]*nth_hour + storages[es].eta*D_es[t, es]*nth_hour
     );
     # lower bound on storage level in last timestep
     @constraint(StorageModel, StorageEnd[es=ES],

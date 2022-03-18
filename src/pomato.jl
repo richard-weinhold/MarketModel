@@ -27,6 +27,7 @@ mutable struct Result
 	INFEASIBILITY_EL_POS::DataFrame
 	INFEASIBILITY_EL_NEG::DataFrame
 	INFEASIBILITY_ES::DataFrame
+	Dump_Water::DataFrame
 	EB_nodal::DataFrame
 	EB_zonal::DataFrame
 	CURT::DataFrame

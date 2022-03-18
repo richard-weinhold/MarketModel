@@ -306,6 +306,7 @@ function set_model_horizon!(data::Data, split::Int)
     for p in filter(plant -> isdefined(plant, :storage_level_start), data.plants)
         p.storage_start = p.storage_level_start[split]
         p.storage_end = p.storage_level_end[split]
+        p.inflow = p.inflow[timesteps]
     end
     for res in data.renewables
 		res.mu = res.mu[timesteps]

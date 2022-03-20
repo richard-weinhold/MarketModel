@@ -91,8 +91,9 @@ function run_market_model(data::Data, input_optimizer;
 	set_global_optimizer(input_optimizer)	
 	pomato_results = Dict{String, Result}()
 	if data.options["timeseries"]["split"]
-		if true
-			@info("Set storage regime in simplified model.")
+		es = filter(p -> p.plant_type in data.options["plant_types"]["es"], data.plants)
+		if (length(es) > 0) & (length(data.t) > 5) 
+			@info("Set storage regime in simplified model for $(length(es)) storage plants.")
 			set_storage_levels!(data)
 		end
 		data_full = deepcopy(data)

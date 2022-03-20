@@ -106,9 +106,12 @@ function solve_storage_model(data::Data)
         L[t, es] == storage_start(es)
     );
     global optimizer
+    global optimizer_package
     set_optimizer(StorageModel, optimizer)   
-    set_optimizer_attribute(StorageModel, "Method", 2)
-    set_optimizer_attribute(StorageModel, "Crossover", 0)
+    if string(optimizer_package) == "Gurobi"
+        set_optimizer_attribute(StorageModel, "Method", 2)
+        set_optimizer_attribute(StorageModel, "Crossover", 0)
+    end
     optimize!(StorageModel)
     return StorageModel
 end

@@ -160,7 +160,6 @@ function populate_plants(raw::RAW)
                 raw.inflows[:,Symbol(name)] :
                 zeros(length(raw.model_horizon[:, :timesteps]))
             )
-                           
             newp.storage_level_start = raw.storage_level[raw.storage_level[:, :plant] .== name, :storage_start]
             newp.storage_level_end = raw.storage_level[raw.storage_level[:, :plant] .== name, :storage_end]
             newp.storage_capacity = raw.plants[p, :storage_capacity]

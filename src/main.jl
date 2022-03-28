@@ -84,15 +84,15 @@ function run_market_model(data_dir::String, result_dir::String, input_optimizer;
 	@info("Everything Done!")
 end
 
-function run_market_model(data::Data, input_optimizer; 
-						  save::Bool=true)
+function run_market_model(
+	data::Data, input_optimizer; save::Bool=true)
 
 
 	set_global_optimizer(input_optimizer)	
 	pomato_results = Dict{String, Result}()
 	if data.options["timeseries"]["split"]
 		es = filter(p -> p.plant_type in data.options["plant_types"]["es"], data.plants)
-		if (length(es) > 0) & (length(data.t) > 5) 
+		if (length(es) > 0) & (length(data.t) > 5)
 			@info("Set storage regime in simplified model for $(length(es)) storage plants.")
 			set_storage_levels!(data)
 		end

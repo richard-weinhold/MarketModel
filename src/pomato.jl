@@ -98,8 +98,12 @@ function POMATO(model::Model, data::Data)
 		es = findall(plant -> plant.plant_type in m.options["plant_types"]["es"], data.plants),
 		hs = findall(plant -> plant.plant_type in m.options["plant_types"]["hs"], data.plants[mapping_he]),
 		ph = findall(plant -> plant.plant_type in m.options["plant_types"]["ph"], data.plants[mapping_he]),
-		alpha = findall(plant -> ((plant.g_max > m.options["chance_constrained"]["alpha_plants_mw"])&(plant.mc_el <= m.options["chance_constrained"]["alpha_plants_mc"])), data.plants),
-		cc_res = findall(res_plants -> res_plants.g_max > m.options["chance_constrained"]["cc_res_mw"], data.renewables),
+		alpha = findall(plant -> (
+			(plant.g_max > m.options["chance_constrained"]["alpha_plants_mw"])
+			&(plant.mc_el <= m.options["chance_constrained"]["alpha_plants_mc"])), data.plants),
+		cc_res = findall(res_plants -> (
+			res_plants.g_max > m.options["chance_constrained"]["cc_res_mw"]
+			), data.renewables),
 	)
 
 	m.n = (t = size(data.t, 1),

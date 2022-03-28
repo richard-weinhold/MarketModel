@@ -1,5 +1,17 @@
 
+"""
+POMATO - Power Market Tool (C) 2021
+Current Version: 0.4
+Created by Richard Weinhold and Robert Mieth
+Licensed under LGPL v3
 
+Language: Julia, v1.5
+----------------------------------
+
+This file:
+Solving a simplified storage model to set start and end conditions for storages. 
+
+"""
 mutable struct ZonalGenerationCapacity
     capacity::Vector{Float64}
     mc::Vector{Float64}

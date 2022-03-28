@@ -133,9 +133,20 @@ function redispatch_model(market_result::Result, data::Data)
 	ph = findall(plant -> plant.plant_type in data.options["plant_types"]["ph"], data.plants[mapping_he])
 
 	market_result_variables["g_market"] = Array(sort(unstack(market_result.G, :t, :p, :G))[:, [p.name for p in data.plants]])
-	market_result_variables["curt_market"] = size(market_result.CURT, 1) > 0 ? Array(sort(unstack(market_result.CURT, :t, :p, :CURT))[:, [res.name for res in data.renewables]]) : zeros(length(data.t), length(data.renewables))
-	market_result_variables["d_es_market"] = size(market_result.D_es, 1) > 0 ? Array(sort(unstack(market_result.D_es, :t, :p, :D_es))[:, [p.name for p in data.plants[es]]]) : Array{Float64}(undef, length(data.t), 0)
-	market_result_variables["d_ph_market"] = size(market_result.D_ph, 1) > 0 ? Array(sort(unstack(market_result.D_ph, :t, :p, :D_ph))[:, [p.name for p in data.plants[ph]]]) : Array{Float64}(undef, length(data.t), 0)
+	market_result_variables["curt_market"] = (
+		size(market_result.CURT, 1) > 0 ? 
+		Array(sort(unstack(market_result.CURT, :t, :p, :CURT))[:, [res.name for res in data.renewables]]) : 
+		zeros(length(data.t), length(data.renewables))
+	)
+	market_result_variables["d_es_market"] = (
+		size(market_result.D_es, 1) > 0 ? 
+		Array(sort(unstack(market_result.D_es, :t, :p, :D_es))[:, [p.name for p in data.plants[es]]]) : 
+		Array{Float64}(undef, length(data.t), 0)
+	)
+	market_result_variables["d_ph_market"] = (size(market_result.D_ph, 1) > 0 ? 
+		Array(sort(unstack(market_result.D_ph, :t, :p, :D_ph))[:, [p.name for p in data.plants[ph]]]) : 
+		Array{Float64}(undef, length(data.t), 0)
+	)
 	market_result_variables["infeas_pos_market"] = Array(sort(unstack(market_result.INFEASIBILITY_EL_POS, :t, :n, :INFEASIBILITY_EL_POS))[:, [n.name for n in data.nodes]])
 	market_result_variables["infeas_neg_market"] = Array(sort(unstack(market_result.INFEASIBILITY_EL_NEG, :t, :n, :INFEASIBILITY_EL_NEG))[:, [n.name for n in data.nodes]])
 
@@ -172,7 +183,7 @@ end
 function solve_redispatch_model(
 	data::Data, market_result_variables::Dict{String, Array{Float64, 2}},
 	timesteps::UnitRange, redispatch_zones::Vector{String}
-)
+	)
 
 	data.t = data.t[timesteps]
 	set_model_horizon!(data)

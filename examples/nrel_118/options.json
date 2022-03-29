@@ -32,8 +32,12 @@
     "alpha_plants_mw": 50,
     "alpha_plants_mc": 20
   },
-  "parameters": {
-    "storage_start": 0.65
+  "storages": {
+    "storage_model": false,
+    "storage_start": 0.5,
+    "storage_end": 0.5,
+    "storage_model_resolution": 5,
+    "smooth_storage_level": true
   },
   "infeasibility": {
     "heat": {

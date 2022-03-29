@@ -124,6 +124,7 @@ function solve_storage_model(data::Data)
     if string(optimizer_package) == "Gurobi"
         set_optimizer_attribute(StorageModel, "Method", 2)
         set_optimizer_attribute(StorageModel, "Crossover", 0)
+        set_optimizer_attribute(StorageModel, "Threads", 8)
     end
     optimize!(StorageModel)
     return StorageModel

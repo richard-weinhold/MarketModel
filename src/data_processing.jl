@@ -162,6 +162,8 @@ function populate_plants(raw::RAW)
             )
             newp.storage_level_start = raw.storage_level[raw.storage_level[:, :plant] .== name, :storage_start]
             newp.storage_level_end = raw.storage_level[raw.storage_level[:, :plant] .== name, :storage_end]
+            newp.storage_start = raw.options["storages"]["storage_start"]
+            newp.storage_end = raw.options["storages"]["storage_end"]
             newp.storage_capacity = raw.plants[p, :storage_capacity]
             newp.d_max = raw.plants[p, :d_max]
         end

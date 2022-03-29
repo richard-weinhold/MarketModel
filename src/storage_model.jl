@@ -39,7 +39,7 @@ end
 
 function solve_storage_model(data::Data)
     # Setup 
-    nth_hour = 5
+    nth_hour = data.options["storages"]["storage_model_resolution"]
     T = collect(1:nth_hour:length(data.t)-nth_hour)
     Z = 1:length(data.zones)
     C = 1:5
@@ -102,17 +102,18 @@ function solve_storage_model(data::Data)
         + INF_POS[t, z] - INF_NEG[t, z]
     );
     
-    storage_start(es) = storages[es].storage_capacity*0.5
+    storage_start(es) = storages[es].storage_capacity*data.options["storages"]["storage_start"]
+    storage_end(es) = storages[es].storage_capacity*data.options["storages"]["storage_end"]
     @constraint(StorageModel, [t=T, es=ES],
-        L[t, es] == (t>1 ? L[t-nth_hour, es] : storage_start(es)) 
+        L[t, es] == (t>1 ? L[t-nth_hour, es] : L[T[end], es]) 
         + sum(storages[es].inflow[t:(t+nth_hour-1)]) 
         - G_es[t, es]*nth_hour - 
         Dump_Water[t, es]*nth_hour + storages[es].eta*D_es[t, es]*nth_hour
     );
     # lower bound on storage level in last timestep
-    @constraint(StorageModel, StorageEnd[es=ES],
-        L[T[end], es] >= storage_start(es)
-    );
+    # @constraint(StorageModel, StorageEnd[es=ES],
+    #     L[T[end], es] >= storage_end(es)
+    # );
     # Short Term storages balance every 4 weeks
     @constraint(StorageModel, ShortTermES[es=short_term_es, t=T_short_term_es],
         L[t, es] == storage_start(es)
@@ -134,7 +135,7 @@ function set_storage_levels!(data::Data)
     model_horizon_segments = split_timeseries_segments(
         data, data.options["timeseries"]["market_horizon"]
     )
-    default_value = data.options["parameters"]["storage_start"]
+    default_value = data.options["storages"]["storage_start"]
     default_level = [default_value for i in 1:length(model_horizon_segments)]
     
     ES = 1:length(storages)
@@ -155,14 +156,16 @@ function set_storage_levels!(data::Data)
     
     # Seasonal levels for all other storages
     T = storage_model[:L].axes[1]
-    window = 7
+    window = min(12, ceil(Int, 
+        data.options["timeseries"]["market_horizon"]/data.options["storages"]["storage_model_resolution"])
+    )
     for es in ES[(.!many_cycles .& .!small_ralative_capacity .& .!small_absolute_capacity)]
         level_rolling = RollingFunctions.rollmean(relative_storage_level[:,es], window)
         inter = Interpolations.LinearInterpolation(T[window:end], level_rolling)
         storage_level_start = [inter(s.start) for s in model_horizon_segments[2:end]]
-        pushfirst!(storage_level_start, 0.5)
+        pushfirst!(storage_level_start, relative_storage_level[1, es])
         storage_level_end = [inter(s.stop) for s in model_horizon_segments[1:end-1]]
-        push!(storage_level_end, 0.5)
+        push!(storage_level_end, relative_storage_level[end, es])
         storages[es].storage_level_start = storage_level_start
         storages[es].storage_level_end = storage_level_end
     end

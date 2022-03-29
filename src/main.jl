@@ -90,24 +90,26 @@ function run_market_model(
 
 	set_global_optimizer(input_optimizer)	
 	pomato_results = Dict{String, Result}()
-	if data.options["timeseries"]["split"]
+	# if data.options["timeseries"]["market_horizon"] < length(data.t)
+	model_horizon_segments = split_timeseries_segments(data, data.options["timeseries"]["market_horizon"])
+	@info("Splitting the model horizon in $(length(model_horizon_segments)) segements.")
+	if data.options["storages"]["storage_model"]
 		es = filter(p -> p.plant_type in data.options["plant_types"]["es"], data.plants)
-		if (length(es) > 0) & (length(data.t) > 5)
-			@info("Set storage regime in simplified model for $(length(es)) storage plants.")
-			set_storage_levels!(data)
-		end
-		data_full = deepcopy(data)
-		model_horizon_segments = split_timeseries_segments(data_full, data.options["timeseries"]["market_horizon"])
-		for (i, timesteps) in enumerate(model_horizon_segments)
-			data = deepcopy(data_full)
-			data.t = data.t[timesteps]
-			set_model_horizon!(data, i)
-			@info("Initializing Market Model for timestep $(data.t[1].name)...")
-			pomato_results[data.t[1].name] = market_model(data).result
-		end
-	else
+		@info("Set storage regime in simplified model for $(length(es)) storage plants.")
+		set_storage_levels!(data)
+	end
+	data_full = deepcopy(data)
+	for (i, timesteps) in enumerate(model_horizon_segments)
+		data = deepcopy(data_full)
+		data.t = data.t[timesteps]
+		set_model_horizon!(data, i)
+		@info("Initializing Market Model for timestep $(data.t[1].name)...")
 		pomato_results[data.t[1].name] = market_model(data).result
 	end
+	# else
+	# 	@info("Running the model over the full model horizon.")
+	# 	pomato_results[data.t[1].name] = market_model(data).result
+	# end
 	if save
 		save_result(concat_results(pomato_results), data.folders["result_dir"])
 	end

@@ -310,8 +310,8 @@ end
 
 function add_heat_generation_constraints!(pomato::POMATO)
 	model, n, mapping, data, options = pomato.model, pomato.n, pomato.mapping, pomato.data, pomato.options
-	chp_efficiency = ("chp_efficiency" in keys(options["parameters"]) ? options["parameters"]["chp_efficiency"] : 0.1)
-	storage_start = options["parameters"]["storage_start"]
+	chp_efficiency = options["heat"]["chp_efficiency"]
+	storage_start = options["heat"]["default_storage_level"]
 
 	# make Variable References Available
 	G, H = model[:G], model[:H]

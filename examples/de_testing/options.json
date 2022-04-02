@@ -5,7 +5,11 @@
     0,
     2
   ],
-  "heat_model": true,
+  "heat": {
+    "include": true,
+    "default_storage_level": 0.5, 
+    "chp_efficiency": 0.1
+  },
   "timeseries": {
     "split": true,
     "type": "rt",
@@ -36,7 +40,7 @@
     "alpha_plants_mc": 20
   },
   "storages": {
-    "storage_model": true,
+    "storage_model": false,
     "storage_start": 0.5,
     "storage_end": 0.5,
     "storage_model_resolution": 5,

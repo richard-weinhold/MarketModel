@@ -52,7 +52,7 @@ function market_model(data)
 	add_electricity_generation_constraints!(pomato)
 	add_electricity_storage_constraints!(pomato)
 
-	if pomato.options["heat_model"]
+	if pomato.options["heat"]["include"]
 		@info("Adding Heat Model...")
 		add_heat_generation_constraints!(pomato)
 	end

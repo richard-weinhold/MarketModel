@@ -83,7 +83,7 @@ function market_model(data)
 	if in(pomato.options["type"] , ["opf", "scopf"]) 
 		if pomato.options["chance_constrained"]["include"]
 			@info("Adding Chance Constraints...")
-			@time add_chance_constraints!(pomato)
+			add_chance_constraints!(pomato)
 		else	
 			if length(data.contingencies) > 1
 				@info("Adding power flow constraints using the PTDF formulation.")

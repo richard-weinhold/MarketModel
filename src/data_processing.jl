@@ -145,7 +145,7 @@ function populate_plants(raw::RAW)
         node_name = raw.plants[p, :node]
         node_idx = raw.nodes[raw.nodes[:, :index] .== node_name, :int_idx][1]
         eta = raw.plants[p, :eta]*1.
-        availability = raw.plants[p, :availability]*1.
+        availability = ("availability" in names(raw.plants) ? raw.plants[p, :availability]*1. : 1.)
         g_max = raw.plants[p, :g_max]*1.
         h_max = raw.plants[p, :h_max]*1.
         mc_el = raw.plants[p, :mc_el]*1.

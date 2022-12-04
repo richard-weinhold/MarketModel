@@ -66,14 +66,14 @@ mutable struct POMATO
 
     ## Plant Mappings
     mapping::NamedTuple{(
-		:slack, # slacks to 1:n_nodes
+		:slack, # slacks to 1:N.nodes
         :he, # 1:N.he index to 1:N.plants
         :chp, # 1:N.chp to 1:N.he
         :es, # 1:N.es to 1:N.plants
         :hs, # 1:N.hs to 1:N.he
         :ph, # 1:N.ph to 1:N.he
-        :alpha, # 1:N.alpha to 1:N.he
-        :cc_res, # map 1:cc_res to 1:n_res
+        :alpha, # 1:N.alpha to 1:N.plants
+        :cc_res, # map 1:cc_res to 1:N.res
 		), Tuple{Vararg{Vector{Int}, 8}}}
 		function POMATO()
 			return new()
@@ -91,6 +91,26 @@ function POMATO(model::Model, data::Data)
 	# mapping heat index to G index
 	mapping_he = findall(plant -> plant.h_max > 0, data.plants)
 
+	if in(m.options["type"] , ["fbmc"])
+		fb_nodes = reduce(vcat, (data.zones[z].nodes for z in findall(zone -> zone.name in data.options["fbmc"]["flowbased_region"], data.zones)))
+		alpha = findall(plant -> (
+			(plant.g_max > m.options["chance_constrained"]["alpha_plants_mw"])
+			&(plant.mc_el <= m.options["chance_constrained"]["alpha_plants_mc"])
+			&(plant.node in fb_nodes)
+			), data.plants)
+		cc_res = findall(res_plants -> (
+			(res_plants.g_max > m.options["chance_constrained"]["cc_res_mw"])
+			&(res_plants.node in fb_nodes)
+			), data.renewables)
+	else
+		alpha = findall(plant -> (
+			(plant.g_max > m.options["chance_constrained"]["alpha_plants_mw"])
+			&(plant.mc_el <= m.options["chance_constrained"]["alpha_plants_mc"])), data.plants)
+		cc_res = findall(res_plants -> (
+			res_plants.g_max > m.options["chance_constrained"]["cc_res_mw"]
+			), data.renewables)
+	end
+
 	m.mapping = (
 		slack = findall(node -> node.slack, data.nodes),
 		he = mapping_he,
@@ -98,12 +118,8 @@ function POMATO(model::Model, data::Data)
 		es = findall(plant -> plant.plant_type in m.options["plant_types"]["es"], data.plants),
 		hs = findall(plant -> plant.plant_type in m.options["plant_types"]["hs"], data.plants[mapping_he]),
 		ph = findall(plant -> plant.plant_type in m.options["plant_types"]["ph"], data.plants[mapping_he]),
-		alpha = findall(plant -> (
-			(plant.g_max > m.options["chance_constrained"]["alpha_plants_mw"])
-			&(plant.mc_el <= m.options["chance_constrained"]["alpha_plants_mc"])), data.plants),
-		cc_res = findall(res_plants -> (
-			res_plants.g_max > m.options["chance_constrained"]["cc_res_mw"]
-			), data.renewables),
+		alpha = alpha,
+		cc_res = cc_res
 	)
 
 	m.n = (t = size(data.t, 1),

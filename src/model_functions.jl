@@ -207,9 +207,8 @@ function add_electricity_storage_constraints!(pomato::POMATO)
 	model, n, mapping, data, options = pomato.model, pomato.n, pomato.mapping, pomato.data, pomato.options
 	D_es, L_es, G = model[:D_es], model[:L_es], model[:G]
 	COST_INFEASIBILITY_ES = model[:COST_INFEASIBILITY_ES]
-
 	@variable(model, 0 <= Dump_Water[t=1:n.t, es=1:n.es] <= data.plants[mapping.es[es]].inflow[t]);
-	@variable(model, 0 <= INFEASIBILITY_ES[1:n.t, 1:n.es] <= pomato.options["infeasibility"]["storages"]["bound"]);
+	@variable(model, 0 <= INFEASIBILITY_ES[t=1:n.t, es=1:n.es] <= pomato.options["infeasibility"]["storages"]["bound"]);
 	# Electricity Storage Equations
 	storage_start(es) = data.plants[mapping.es[es]].storage_start*data.plants[mapping.es[es]].storage_capacity
 	@constraint(model, [t=1:n.t, es=1:n.es],

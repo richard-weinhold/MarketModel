@@ -14,19 +14,22 @@ Definition of data structs data handling
 mutable struct Line
     # Attributes
     index::Int
-    name::String
+    name::AbstractString
     b::Float64
     capacity::Float64
     zone_i::Int
     zone_j::Int
     incidence::Vector{Float64}
-    function Line(index::Int,
-                  name::String,
-                  b::Float64,
-                  capacity::Float64,
-                  zone_i::Int,
-                  zone_j::Int,
-                  incidence::Vector{Int})
+    function Line(
+        index::Int,
+        name::AbstractString,
+        b::Float64,
+        capacity::Float64,
+        zone_i::Int,
+        zone_j::Int,
+        incidence::Vector{Int}
+    )
+        
         l = new()
         l.index = index
         l.name = name
@@ -41,7 +44,7 @@ end
 
 mutable struct Contingency
     # Attributes
-    name::String
+    name::AbstractString
     # Angle Formulation
     lines::Vector{Int}
     outages::Vector{Int}
@@ -49,8 +52,8 @@ mutable struct Contingency
     ptdf::Array{Float64}
     ram::Vector{Float64}
     # Optional Attributes
-    timestep::String
-    function Contingency(name::String,
+    timestep::AbstractString
+    function Contingency(name::AbstractString,
                          lines::Vector{Int},
                          outages::Vector{Int},
                          ptdf::Array{Float64, 2},
@@ -180,10 +183,9 @@ mutable struct Renewables
         sigma_heat_da::Array
         node::Int
         plant_type::Any
-        function Renewables(index::Int, name::Any,
-                            g_max::Float64, h_max::Float64,
-                            mc_el::Float64, mc_heat::Float64,
-                            availability_rt::Array, node::Int, plant_type::Any)
+        function Renewables(
+                index::Int, name::Any, g_max::Float64, h_max::Float64, mc_el::Float64, 
+                mc_heat::Float64, availability_rt::Array, node::Int, plant_type::Any)
             res = new()
             res.index = index
             res.g_max = g_max
@@ -194,7 +196,7 @@ mutable struct Renewables
             res.node = node
             res.plant_type = plant_type
 
-            res.sigma_factor =  0.1
+            res.sigma_factor =  0.01
             
             res.mu_rt = availability_rt * g_max
             res.sigma_rt = res.mu_rt * res.sigma_factor
@@ -234,16 +236,9 @@ mutable struct Plant
     storage_level_start::Array
     storage_level_end::Array
     
-    function Plant(index::Int,
-                   name::Any,
-                   node::Int,
-                   mc_el::Float64,
-                   mc_heat::Float64,
-                   eta::Float64,
-                   availability::Float64,
-                   g_max::Float64,
-                   h_max::Float64,
-                   plant_type::Any)
+    function Plant(
+            index::Int, name::Any, node::Int, mc_el::Float64, mc_heat::Float64, eta::Float64,
+            availability::Float64, g_max::Float64, h_max::Float64, plant_type::Any)
         p = new()
         p.index = index
         p.name = name
@@ -266,11 +261,9 @@ mutable struct DC_Line
     node_i::Int
     node_j::Int
     capacity::Float64
-    function DC_Line(index::Int,
-                     name::Any,
-                     node_i::Int,
-                     node_j::Int,
-                     capacity::Float64)
+    function DC_Line(
+            index::Int, name::Any, node_i::Int, 
+            node_j::Int, capacity::Float64)
         l = new()
         l.index = index
         l.name = name
@@ -283,8 +276,8 @@ end
 
 mutable struct Timestep
     index::Int
-    name::String
-    function Timestep(index::Int, name::String)
+    name::AbstractString
+    function Timestep(index::Int, name::AbstractString)
         t = new()
         t.index = index
         t.name = name
@@ -307,11 +300,12 @@ mutable struct Data
     folders::Dict{String, String}
     options::Dict{String, Any}
 
-    function Data(nodes::Vector{Node}, zones::Vector{Zone},
-                  heatareas::Vector{Heatarea}, plants::Vector{Plant},
-                  renewables::Vector{Renewables}, lines::Vector{Line},
-                  contingencies::Vector{Contingency}, redispatch_contingencies::Vector{Contingency},
-                  dc_lines::Vector{DC_Line}, t::Vector{Timestep})
+    function Data(
+            nodes::Vector{Node}, zones::Vector{Zone}, heatareas::Vector{Heatarea}, 
+            plants::Vector{Plant}, renewables::Vector{Renewables}, 
+            lines::Vector{Line}, contingencies::Vector{Contingency}, 
+            redispatch_contingencies::Vector{Contingency}, 
+            dc_lines::Vector{DC_Line}, t::Vector{Timestep})
           d = new()
           d.nodes = nodes
           d.zones = zones

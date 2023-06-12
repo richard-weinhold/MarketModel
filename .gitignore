@@ -4,3 +4,4 @@ test/test_env/
 .vscode/launch.json
 .vscode/settings.json
 docs/build
+Manifest.toml

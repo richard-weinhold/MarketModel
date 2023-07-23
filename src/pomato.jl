@@ -33,13 +33,13 @@ mutable struct Result
 	CURT::DataFrame
 	Alpha::DataFrame
 	CC_LINE_MARGIN::DataFrame
-	INFEASIBILITY_CC_LINES::DataFrame
 	G_RES::DataFrame
 	H_RES::DataFrame
 	COST_G::DataFrame
 	COST_H::DataFrame
 	COST_EX::DataFrame
 	COST_CURT::DataFrame
+	COST_CC_LINE_MARGIN::DataFrame
 	COST_REDISPATCH::DataFrame
 	COST_INFEASIBILITY_EL::DataFrame
 	COST_INFEASIBILITY_H::DataFrame

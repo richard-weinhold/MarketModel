@@ -39,7 +39,6 @@ function get_result_info(pomato::POMATO)
 			    :CURT => var_info(([:t, :renewables], [1:n.t, 1:n.res], [:t, :p, :CURT], false)),
 			    :Alpha => var_info(([:t, :plants], [1:n.t, mapping.alpha], [:t, :p, :Alpha], false)),
 			    :CC_LINE_MARGIN => var_info(([:t, :contingencies, (:contingencies, :lines)], [], [:t, :co, :cb, :CC_LINE_MARGIN], false)),
-			    :INFEASIBILITY_CC_LINES => var_info(([:t, :contingencies, (:contingencies, :lines)], [], [:t, :co, :cb, :INFEASIBILITY_CC_LINES], false)),
 			    :G_RES => var_info(([:t, :renewables], [1:n.t, 1:n.res], [:t, :p, :G_RES], false)),
 			    :H_RES => var_info(([:t, :renewables], [1:n.t, 1:n.res], [:t, :p, :H_RES], false)),
 			    :COST_G => var_info(([:t], [1:n.t], [:t, :COST_G], false)),
@@ -47,6 +46,7 @@ function get_result_info(pomato::POMATO)
 			    :COST_EX => var_info(([:t], [1:n.t], [:t, :COST_EX], false)),
 			    :COST_CURT => var_info(([:t], [1:n.t], [:t, :COST_CURT], false)),
 			    :COST_REDISPATCH => var_info(([:t], [1:n.t], [:t, :COST_REDISPATCH], false)),
+			    :COST_CC_LINE_MARGIN => var_info(([:t], [1:n.t], [:t, :COST_CC_LINE_MARGIN], false)),
 			    :COST_INFEASIBILITY_EL => var_info(([:t], [1:n.t], [:t, :COST_INFEASIBILITY_EL], false)),
 			    :COST_INFEASIBILITY_H => var_info(([:t], [1:n.t], [:t, :COST_INFEASIBILITY_H], false)),
 			    :COST_INFEASIBILITY_ES => var_info(([:t], [1:n.t], [:t, :COST_INFEASIBILITY_ES], false)),
@@ -65,7 +65,7 @@ function Result(pomato::POMATO)
 	result.misc_results = Dict()
 	result.misc_results["Objective Value"] = JuMP.objective_value(pomato.model)
 	for cost in ["COST_G", "COST_H", "COST_EX", "COST_CURT", "COST_REDISPATCH", 
-				 "COST_INFEASIBILITY_EL", "COST_INFEASIBILITY_H"]
+				 "COST_INFEASIBILITY_EL", "COST_INFEASIBILITY_H", "COST_CC_LINE_MARGIN"]
 		result.misc_results[cost] = sum(JuMP.value.(pomato.model[Symbol(cost)]))
 	end
 	result.misc_results["Solve Status"] = JuMP.termination_status(pomato.model)
@@ -98,7 +98,8 @@ function concat_results(results::Dict{String, Result})
 	end
 	r.misc_results = Dict()
 	r.misc_results["Objective Value"] = sum([results[k].misc_results["Objective Value"] for k in keys(results)])
-	for cost in ["COST_G", "COST_H", "COST_EX", "COST_CURT", "COST_REDISPATCH", "COST_INFEASIBILITY_EL", "COST_INFEASIBILITY_H"]
+	for cost in ["COST_G", "COST_H", "COST_EX", "COST_CURT", "COST_REDISPATCH", 
+				 "COST_INFEASIBILITY_EL", "COST_INFEASIBILITY_H", "COST_CC_LINE_MARGIN"]
 		r.misc_results[cost] = sum([results[k].misc_results[cost] for k in keys(results)])
 	end
 	r.options = collect(values(results))[1].options

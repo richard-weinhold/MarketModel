@@ -189,14 +189,17 @@ function add_cost_expressions!(
 	@expression(model, COST_CURT[t=1:n.t], GenericAffExpr{Float64, VariableRef}(0));
 	@expression(model, COST_INFEASIBILITY_ES[t=1:n.t], GenericAffExpr{Float64, VariableRef}(0));
 	@expression(model, COST_REDISPATCH[t=1:n.t], GenericAffExpr{Float64, VariableRef}(0));
+	@expression(model, COST_CC_LINE_MARGIN[t=1:n.t], GenericAffExpr{Float64, VariableRef}(0));
 end
 
 function add_objective!(pomato::POMATO)
 	model = pomato.model
 	# Objective Function based on Cost Expressions
-	@objective(model, Min, sum(model[:COST_G]) + sum(model[:COST_H]) + sum(model[:COST_EX])
-						   + sum(model[:COST_INFEASIBILITY_EL]) + sum(model[:COST_INFEASIBILITY_H])
-						   + sum(model[:COST_CURT]) + sum(model[:COST_REDISPATCH]) + sum(model[:COST_INFEASIBILITY_ES]));
+	@objective(model, Min, 
+		sum(model[:COST_G]) + sum(model[:COST_H]) + sum(model[:COST_EX]) + sum(model[:COST_CC_LINE_MARGIN])
+		+ sum(model[:COST_INFEASIBILITY_EL]) + sum(model[:COST_INFEASIBILITY_H]) + sum(model[:COST_INFEASIBILITY_ES])
+		+ sum(model[:COST_CURT]) + sum(model[:COST_REDISPATCH]) 
+	);
 end
 
 function add_result!(pomato::POMATO)
@@ -513,7 +516,8 @@ function add_chance_constrained_flowbased_constraints!(pomato::POMATO)
 	cc_res_to_zone = cc_res_to_zone[:, mapping.cc_res]
 
 	# Distribution Paramters
-	epsilon = 0.05
+	epsilon = pomato.options["chance_constrained"]["epsilon"]
+	@info("Using Epsilon of: ", epsilon)
 	z = quantile(Normal(0,1), 1-epsilon);
 	sigma = hcat([res.sigma for res in data.renewables[mapping.cc_res]]...);
 	# sigma = zeros(n.t, n_cc_res)
@@ -544,7 +548,7 @@ function add_chance_constrained_flowbased_constraints!(pomato::POMATO)
 	@constraint(model, [t=1:n.t, alpha=1:n.alpha], G[t, mapping.alpha[alpha]] + z*Alpha[t,alpha]*S[t] <= data.plants[mapping.alpha[alpha]].g_max);
 	@constraint(model, [t=1:n.t, alpha=1:n.alpha], -G[t, mapping.alpha[alpha]] + z*Alpha[t,alpha]*S[t] <= 0);
 
-	@info("Adding load flow constaints... ")
+	@info("Adding Power Flow Constaints in FB CC Formulation... ")
 	contingency_t(t) = filter(c -> c.timestep == data.t[t].name, data.contingencies)
 	contingency_idx_t(t) = findall(c -> c.timestep == data.t[t].name, data.contingencies)
 	ptdf_t(t) = vcat([contingency.ptdf for contingency in contingency_t(t)]...) 
@@ -552,22 +556,14 @@ function add_chance_constrained_flowbased_constraints!(pomato::POMATO)
 	@variable(model, 
 		CC_LINE_MARGIN[t=1:n.t, co=contingency_idx_t(t), cb=1:length(data.contingencies[co].lines)] >= 0
 	);
-	@variable(model, 
-		INFEASIBILITY_CC_LINES[t=1:n.t, co=contingency_idx_t(t), cb=1:length(data.contingencies[co].lines)] >= 0
-	);
-	
-	COST_INF = model[:COST_INFEASIBILITY_EL]
-	cost_inf = pomato.options["infeasibility"]["electricity"]["cost"]
+	CC_LINE_MARGIN_t(t) = [CC_LINE_MARGIN[t, co, cb] for co in contingency_idx_t(t) for cb in 1:length(data.contingencies[co].lines)]
+
+	cost_inf = pomato.options["infeasibility"]["electricity"]["cost"]*100
 	for t in 1:n.t
-		for co in contingency_idx_t(t)
-			add_to_expression!(COST_INF[t], sum(INFEASIBILITY_CC_LINES[t, co, cb]*cost_inf for cb in 1:length(data.contingencies[co].lines)))
-		end
+		add_to_expression!(model[:COST_CC_LINE_MARGIN][t], sum(CC_LINE_MARGIN_t(t))*cost_inf)
 	end
 
-	CC_LINE_MARGIN_t(t) = [CC_LINE_MARGIN[t, co, cb] for co in contingency_idx_t(t) for cb in 1:length(data.contingencies[co].lines)]
-	INFEASIBILITY_CC_LINES_t(t) = [INFEASIBILITY_CC_LINES[t, co, cb] for co in contingency_idx_t(t) for cb in 1:length(data.contingencies[co].lines)]
-
-	EX = model[:EX]
+	EX = 
 	for t in 1:n.t
 		ptdf = ptdf_t(t)
 		ram = ram_t(t)
@@ -577,16 +573,16 @@ function add_chance_constrained_flowbased_constraints!(pomato::POMATO)
 			vec(vcat(CC_LINE_MARGIN_t(t)[cb], (alpha_loadflow[cb, :]'*Epsilon_root[t])')) in SecondOrderCone()
 		);
 		@constraint(model, 
-			Array(ptdf * sum(EX[t, :, zz] - EX[t, zz, :] for zz in 1:n.zones) .+ CC_LINE_MARGIN_t(t)*z) .<= ram + INFEASIBILITY_CC_LINES_t(t)
+			Array(ptdf * sum(model[:EX][t, :, zz] - model[:EX][t, zz, :] for zz in 1:n.zones) .+ CC_LINE_MARGIN_t(t)*z) .<= ram
 		);
+		@constraint(model, CC_LINE_MARGIN_t(t) <= ram);
 	end
 end
 
 function add_ntc_constraints!(pomato::POMATO)
 	model, n, mapping, data = pomato.model, pomato.n, pomato.mapping, pomato.data
-	EX = model[:EX]
 	@constraint(model, [t=1:n.t, z=1:n.zones, zz=1:n.zones], 
-		EX[t, z, zz] <= data.zones[z].ntc[zz]
+	model[:EX][t, z, zz] <= data.zones[z].ntc[zz]
 	);
 end
 

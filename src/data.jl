@@ -185,7 +185,8 @@ mutable struct Renewables
         plant_type::Any
         function Renewables(
                 index::Int, name::Any, g_max::Float64, h_max::Float64, mc_el::Float64, 
-                mc_heat::Float64, availability_rt::Array, node::Int, plant_type::Any)
+                mc_heat::Float64, availability_rt::Array, node::Int, plant_type::Any, 
+                sigma_factor::Float64)
             res = new()
             res.index = index
             res.g_max = g_max
@@ -196,8 +197,7 @@ mutable struct Renewables
             res.node = node
             res.plant_type = plant_type
 
-            res.sigma_factor =  0.01
-            
+            res.sigma_factor = sigma_factor
             res.mu_rt = availability_rt * g_max
             res.sigma_rt = res.mu_rt * res.sigma_factor
 

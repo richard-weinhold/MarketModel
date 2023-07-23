@@ -25,22 +25,6 @@ function read_model_data(data_dir::String)
     lines = populate_lines(raw, nodes)
     contingencies, redispatch_contingencies = populate_network(raw, lines, nodes, zones)
 
-    # task_zones = Threads.@spawn populate_zones(raw)
-    # task_nodes = Threads.@spawn populate_nodes(raw)
-    # task_heatareas = Threads.@spawn populate_heatareas(raw)
-    # task_plants = Threads.@spawn populate_plants(raw)
-    # task_res_plants = Threads.@spawn populate_res_plants(raw)
-    # task_dc_lines = Threads.@spawn populate_dclines(raw)
-    # task_grid = Threads.@spawn populate_grid(raw)
-
-    # zones = fetch(task_zones)
-    # nodes = fetch(task_nodes)
-    # heatareas = fetch(task_heatareas)
-    # plants = fetch(task_plants)
-    # res_plants = fetch(task_res_plants)
-    # dc_lines = fetch(task_dc_lines)
-    # grid = fetch(task_grid)
-
     timesteps = populate_timesteps(raw)
     data = Data(nodes, zones, heatareas, plants, res_plants, lines, 
                 contingencies, redispatch_contingencies, dc_lines, timesteps)
@@ -177,6 +161,7 @@ function populate_res_plants(raw::RAW)
     if size(raw.availability, 1) > 0
         availability = unstack(raw.availability, :timestep, :plant, :availability)
     end
+    sigma_factor = raw.options["chance_constrained"]["percent_std"]
     for res in 1:nrow(raw.res_plants)
         index = res
         name = string(raw.res_plants[res, :index])
@@ -188,7 +173,7 @@ function populate_res_plants(raw::RAW)
         mc_heat = raw.res_plants[res, :mc_heat]*1.
         plant_type = raw.res_plants[res, :plant_type]
         newres = Renewables(
-            index, name, g_max, h_max, mc_el, mc_heat, availability[:, name], node_idx, plant_type
+            index, name, g_max, h_max, mc_el, mc_heat, availability[:, name], node_idx, plant_type, sigma_factor
         )
 
         if "availability_da" in string.(names(raw.availability))

@@ -33,11 +33,13 @@
     "cost": 25
   },
   "chance_constrained": {
-    "include": false,
-    "fixed_alpha": true,
-    "cc_res_mw": 50,
-    "alpha_plants_mw": 50,
-    "alpha_plants_mc": 20
+    "include": true,
+    "fixed_alpha": false,
+    "cc_res_mw": 0,
+    "alpha_plants_mw": 30,
+    "alpha_plants_mc": 30,
+    "epsilon": 0.05,
+    "percent_std": 0.1
   },
   "storages": {
     "storage_model": false,
@@ -98,9 +100,8 @@
     "reduce": false,
     "enforce_ntc_domain": false
   },
-  "data": {
-    "result_copy": false
-  },
-  "solver_options": {
+  "solver": {
+    "name": "Clp",
+    "solver_options": {}
   }
 }

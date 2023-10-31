@@ -4,7 +4,11 @@
     0,
     24
   ],
-  "heat_model": false,
+  "heat": {
+    "include": false,
+    "default_storage_level": 0.5,
+    "chp_efficiency": 0.1
+  },
   "timeseries": {
     "split": true,
     "type": "rt",
@@ -26,11 +30,13 @@
     "cost": 1000.0
   },
   "chance_constrained": {
-    "include": false,
-    "fixed_alpha": true,
-    "cc_res_mw": 5,
-    "alpha_plants_mw": 50,
-    "alpha_plants_mc": 20
+    "include": true,
+    "fixed_alpha": false,
+    "cc_res_mw": 0,
+    "alpha_plants_mw": 30,
+    "alpha_plants_mc": 30,
+    "epsilon": 0.05,
+    "percent_std": 0.1
   },
   "storages": {
     "storage_model": false,

@@ -36,11 +36,14 @@ Related Publications
 - [Weinhold (2022), Dissertation, Open-source modeling of flow based market
   coupling](https://depositonce.tu-berlin.de/items/d3b3a941-8c35-41b5-b404-f75034f971be) (Dissertation - Available from TU - Berlin). 
 - [Weinhold (2021), Dissertation, Open-source modeling of flow based market
-  coupling](https://depositonce.tu-berlin.de/items/d3b3a941-8c35-41b5-b404-f75034f971be) (Defence Slides). 
+  coupling](https://github.com/richard-weinhold/pomato/blob/8f2da62856b84fa6b3132683b452e690b9cc4167/docs/_static/files/pomato_defence_plain_final.pdf) (Defence Slides). 
+- [Weinhold (2020), Evaluating Policy Implications on the Restrictiveness of Flow-based Market
+  Coupling with High Shares of Intermittent Generation: A Case Study for Central Western
+  Europe](https://arxiv.org/abs/2109.04940)
 - [Weinhold and Mieth (2021), Power Market Tool (POMATO) for the Analysis of Zonal 
    Electricity Markets](https://www.sciencedirect.com/science/article/pii/S2352711021001394)
 - [Weinhold and Mieth (2020), Fast Security-Constrained Optimal Power Flow through 
    Low-Impact and Redundancy Screening](https://ieeexplore.ieee.org/document/9094021)
-- [Schönheit, Weinhold, Dierstein (2020), The impact of different strategies for generation 
-   shift keys (GSKs) on  the flow-based market coupling domain: A model-based analysis of Central Western Europe](https://www.sciencedirect.com/science/article/pii/S0306261919317544)
-
+- [Schönheit, Weinhold, Dierstein (2020), The impact of different strategies for generation shift
+   keys (GSKs) on  the flow-based market coupling domain: A model-based analysis of Central Western
+   Europe](https://www.sciencedirect.com/science/article/pii/S0306261919317544)

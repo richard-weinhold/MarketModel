@@ -33,7 +33,7 @@
     "cost": 25
   },
   "chance_constrained": {
-    "include": true,
+    "include": false,
     "fixed_alpha": false,
     "cc_res_mw": 0,
     "alpha_plants_mw": 30,

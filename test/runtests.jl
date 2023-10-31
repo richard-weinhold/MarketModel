@@ -3,6 +3,7 @@ include("../src/MarketModel.jl")
 import .MarketModel
 using Test, Logging
 using Clp
+using ECOS
 
 ConsoleLogger(stdout, Logging.Info) |> global_logger
 # %%
